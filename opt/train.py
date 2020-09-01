@@ -22,6 +22,7 @@ def train_model(model, loaders=None, method="ipm", options=None,
         if constraints["lmi"] is not None:
             for lmi in constraints["lmi"]:
                 problem.addSDPconstraint(lmi)
+
         # Inequality Constraints
         if constraints["inequality"] is not None:
             for ineq in constraints["inequality"]:

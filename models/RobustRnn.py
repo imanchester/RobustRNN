@@ -202,7 +202,7 @@ class RobustRnn(torch.nn.Module):
 
         return [l2gb_lmi, E_pd, P_pd]
 
-    def initialize_lipschitz_LMI(self, gamma=10.0, eps=1E-4, init_var=1.5, solver="mosek"):
+    def initialize_lipschitz_LMI(self, gamma=10.0, eps=1E-4, init_var=1.5, solver="SCS"):
         solver_tol = 1E-4
         print("Initializing Lipschitz LMI ...")
         # Lip SDP multiplier
@@ -303,7 +303,7 @@ class RobustRnn(torch.nn.Module):
         self.Du.weight = Parameter(Tensor(Du.value))
         self.Cv.weight = Parameter(Tensor(Cv))
 
-    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-4, init_var=1.2, solver="mosek"):
+    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-4, init_var=1.2, solver="SCS"):
 
         print("RUNNING N4SID for intialization of A, Bu, C, Du")
 
@@ -586,7 +586,7 @@ class RobustRnn(torch.nn.Module):
 
         print("Init Complete")
 
-    def init_stable_ss(self, loader, eps=1E-4, init_var=1.2):
+    def init_stable_ss(self, loader, eps=1E-4, init_var=1.2, solver="SCS"):
 
         print("RUNNING N4SID for intialization of A, Bu, C, Du")
 
@@ -673,7 +673,6 @@ class RobustRnn(torch.nn.Module):
                        multis >= 1E-6]
 
         # ensure wide distribution of eigenvalues for Bw
-        # objective = cp.Minimize(cp.norm(E @ Ass - F) + cp.norm(Bw) + cp.norm(Dw))
         bv = self.bv.detach().numpy()[:, None]
 
         if type(self.nl) is torch.nn.ReLU:
@@ -694,7 +693,11 @@ class RobustRnn(torch.nn.Module):
         constraints.append(Q >> 0)
 
         prob = cp.Problem(objective, constraints)
-        prob.solve(solver=cp.SCS)
+
+        if solver == "mosek":
+            prob.solve(solver=cp.MOSEK)
+        else:
+            prob.solve(solver=cp.SCS)
         print("Initilization Status: ", prob.status)
 
         # Solve for output mapping from (W, X, U) -> Y
@@ -710,19 +713,17 @@ class RobustRnn(torch.nn.Module):
             w = np.maximum(C2 @ X[:, t-1:t] + D22 @ U[:, t-1:t] + bv, 0)
             X[:, t:t+1] = Ahat @ X[:, t-1:t] + Bwhat @ w + Buhat @ U[:, t-1:t]
 
-        W = np.maximum(C2 @ X + D22 @ U + bv, 0)
+        if type(self.nl) is torch.nn.ReLU:
+            W = np.maximum(C2 @ X + D22 @ U + bv, 0)
+        else:
+            W = np.tanh(C2 @ X + D22 @ U + bv, 0)
 
         Z = np.concatenate([X, W, U], 0)
-        # Z = np.concatenate([X, W], 0)
-        # Z = X
         output_mats = Y @ np.linalg.pinv(Z)
 
         C1 = output_mats[:, :self.nx]
         D11 = output_mats[:, self.nx:self.nx+self.nw]
         D12 = output_mats[:, self.nx+self.nw:]
-        # D12 = np.zeros((self.ny, self.nu))
-        # D11 = np.zeros((self.ny, self.nw))
-
 
         # Assign results to model
         self.IQC_multipliers = Parameter(Tensor(multis.value))
@@ -742,8 +743,6 @@ class RobustRnn(torch.nn.Module):
         self.C2tild = Parameter(Tensor(Ctild.value))
         self.Dtild = Parameter(Tensor(Dtild.value))
 
-        # yest = self.forward(Tensor(U[:, None, :]))
-
         print("Init Complete")
 
     def clone(self):
@@ -753,6 +752,7 @@ class RobustRnn(torch.nn.Module):
         return copy
 
     def flatten_params(self):
+        r"""Return paramter vector as a vector x."""
         views = []
         for p in self.parameters():
             if p is None:
@@ -765,6 +765,7 @@ class RobustRnn(torch.nn.Module):
         return torch.cat(views, 0)
 
     def write_flat_params(self, x):
+        r""" Writes vector x to model parameters.."""
         index = 0
         theta = torch.Tensor(x)
         for p in self.parameters():
@@ -772,6 +773,7 @@ class RobustRnn(torch.nn.Module):
             index = index + p.numel()
 
     def flatten_grad(self):
+        r""" Returns vector of all gradients."""
         views = []
         for p in self.parameters():
             if p.grad is None:
@@ -789,77 +791,3 @@ class RobustRnn(torch.nn.Module):
             if p.grad is not None:
                 p.grad.detach_()
                 p.grad.zero_()
-
-    def check_lipschitz_storage_func(self, u, du, gamma):
-
-        inputs = u.permute(0, 2, 1)
-        dU = du.permute(0, 2, 1)
-
-        seq_len = inputs.size(1)
-
-        #  Initial state
-        ht1 = torch.zeros(1, self.nx)
-        ht2 = torch.zeros(1, self.nx)
-
-        # First calculate the inverse for E for each layer
-        Einv = self.E.inverse()
-
-        Sigma = torch.zeros(seq_len)
-        V = torch.zeros(seq_len)
-        IQC = torch.zeros(seq_len)
-
-        # Used to calculate the IQCs            
-        a = self.alpha
-        b = self.beta
-        T = self.construct_T()
-        M = utils.bmat([[-2 * a * b * T, (a + b) * T], [(a + b) * T, -2 * T]])
-
-        for tt in range(seq_len - 1):
-
-            # Forward dynamics for trajectory 1
-            wt1 = self.nl(ht1)
-            ut1 = inputs[:, tt, :]
-
-            yt1 = self.C(ht1) + self.Dw(wt1) + self.Du(ut1)
-
-            eh1 = self.F(ht1) + self.Bw(wt1) + self.Bu(ut1)
-
-            # Forward dynamics for trajectory 2
-            wt2 = self.nl(ht2)
-            ut2 = inputs[:, tt, :] + dU[:, tt, :]
-            yt2 = self.C(ht2) + self.Dw(wt2) + self.Du(ut2)
-
-            eh2 = self.F(ht2) + self.Bw(wt2) + self.Bu(ut2)
-
-            # Calculate differentials
-            du = ut1 - ut2
-            dy = yt1 - yt2
-            dx = ht1 - ht2
-            dw = wt1 - wt2
-
-            # Calculate the incremental supply rate at time t
-            sigma_t = gamma ** 2 * du.norm()**2 - dy.norm()**2
-            Sigma[tt] = sigma_t
-
-            # Calculate incremental Storage function at each time step
-            Vt = dx @ self.E @ self.P.inverse() @ self.E.T @ dx.T
-            V[tt] = Vt
-
-            # check IQCs
-            eta = torch.cat([dx.T, dw.T], 0)
-
-            iqc = eta.T @ M @ eta
-            IQC[tt] = iqc
-
-            if iqc < -0.2:
-                print("It haappened!!")
-
-            # update dynamics
-            ht1 = eh1 @ Einv
-            ht2 = eh2 @ Einv
-
-        diss_ineq = (V[:-1] - V[1:] + Sigma[:-1] - IQC[:-1]).detach()
-
-        # plt.pause(1)
-        # plt.show()
-        print("Finished Checking Supply rates")

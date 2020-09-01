@@ -1,11 +1,6 @@
-# deep implicit RNN.
-
 import torch
 from torch import nn
 import matplotlib.pyplot as plt
-# from torch.nn import Parameter
-# import torch.jit as jit
-# import models.dnb as dnb
 from typing import List
 from torch import Tensor
 
@@ -13,9 +8,9 @@ import cvxpy as cp
 import numpy as np
 
 
-class diRNN(torch.nn.Module):
+class ciRNN(torch.nn.Module):
     def __init__(self, input_size, hidden_size, output_size, layers=1, nl=None, ar=False, nBatches=1, learn_init_state=True):
-        super(diRNN, self).__init__()
+        super(ciRNN, self).__init__()
 
         self.nx = hidden_size
         self.nu = input_size
