@@ -109,7 +109,7 @@ if __name__ == "__main__":
     def test_responses(models, amp=3, period=100, sim_len=1000):
         print("\t Getting responses")
         samples = 300
-        
+
         Yest = np.zeros(samples, sim_len)
 
         model.eval()
@@ -120,80 +120,41 @@ if __name__ == "__main__":
     sim = msd.msd_chain(N=4, T=1000, u_sd=10, period=100, Ts=0.5, batchsize=100)
     loader = sim.sim_rand_ic(1000, 100, mini_batch_size=100)
 
-    # for (idx, U, Y) in loader:
-         
-    #     # name = 'lstm_w10_gamma0.0_n4'
-    #     # model_lstm = lstm.lstm(nu, width, ny, layers=1, nBatches=batches)
-    #     # model_lstm.load_state_dict(torch.load(path + name + ".params"))
-    #     # Yest_lstm = model_lstm(U)
-
-    #     # name = 'rnn_w10_gamma0.0_n4'
-    #     # model_rnn = rnn.rnn(nu, width, ny, 1, nBatches=batches)
-    #     # model_rnn.load_state_dict(torch.load(path + name + ".params"))
-    #     # Yest_rnn = model_rnn(U)
-
-    #     name = 'iqc-rnn_w10_gamma10.0_n4'
-    #     model_g00 = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    #     model_g00.load_state_dict(torch.load(path + name + ".params"))
-    #     Yest_g00 = model_g00(U)
-
-    #     name = 'iqc-rnn_w10_gamma8.0_n4'
-    #     model_g8 = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    #     model_g8.load_state_dict(torch.load(path + name + ".params"))
-    #     Yest_g8 = model_g8(U)
-
-    #     results = {"U": U.detach().numpy(), "Y": Y.detach().numpy(), "lstm": Yest_lstm.detach().numpy(),
-    #                "rnn":Yest_rnn.detach().numpy(), "g00": Yest_g00.detach().numpy(), "g8": Yest_g8.detach().numpy()}
-
-    #     io.savemat("/mnt/d/Documents/msd_results/estimates_u10.mat", results)
-
     # iqc-rnns
     print("Running tests on robust-RNN")
     name = 'iqc-rnn_w10_gamma0.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma3.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma5.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma8.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma10.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma15.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
@@ -203,20 +164,14 @@ if __name__ == "__main__":
     name = 'lstm_w10_gamma0.0_n4'
     model = lstm.lstm(nu, width, ny, layers=1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
-
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     # rnn
     print("Running tests on RNN")
-
     name = 'rnn_w10_gamma0.0_n4'
     model = rnn.rnn(nu, width, ny, 1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
@@ -225,51 +180,38 @@ if __name__ == "__main__":
     name = 'iqc-rnn_w10_gamma0.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma3.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma6.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma8.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma10.0_n4'
     model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
 
     # cirnn
     print("Running tests on cirnn")
     name = 'cirnn_w10_gamma0.0_n4'
     model = diRNN.diRNN(nu, width, ny, 1, nBatches=100)
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
@@ -278,8 +220,5 @@ if __name__ == "__main__":
     name = 'dnb_w10_gamma0.0_n4'
     model = dnb.dnbRNN(nu, width, ny, layers=1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
-    # res = vary_period(model)
-    # io.savemat('./results/msd/generalization/per_' + name + '.mat', res)
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
