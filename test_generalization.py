@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import data.load_data as load_data
+# import data.load_data as load_data
 from scipy.optimize import minimize, NonlinearConstraint
 import multiprocessing
 import scipy.io as io
@@ -9,23 +9,13 @@ import os
 
 import models.rnn as rnn
 import models.lstm as lstm
-import models.iqcRnn_V2 as iqcRNN
-import models.diRNN as diRNN
+import models.RobustRnn as RobustRnn
+import models.ciRNN as ciRNN
 import models.dnb as dnb
-import sys
 
 import data.n_linked_msd as msd
 
-from os import listdir
-from os.path import isfile, join
-
-import torch.nn.utils.clip_grad as clip_grad
-import matplotlib
-matplotlib.rcParams["backend"] = "TkAgg"
-import matplotlib.pyplot as plt
-
-
-torch.set_default_dtype(torch.float64)  # Need double precision because semidefinite programming is hard
+torch.set_default_dtype(torch.float64)
 torch.set_printoptions(precision=4)
 multiprocessing.set_start_method('spawn', True)
 
@@ -73,91 +63,52 @@ if __name__ == "__main__":
 
         NSE_dist = np.zeros((test_points, samples))
         SE_dist = np.zeros((test_points, samples))
-        sensitivity_dist = np.zeros((test_points, samples))
         amps = np.linspace(0.5, 10.5, test_points)
-
-        res = test_performance(model, period, 10, samples=samples)
 
         for idx in range(test_points):
             res = test_performance(model, period, amps[idx], samples=samples)
             NSE_dist[idx, :] = res["NSE"]
             SE_dist[idx, :] = res["SE"]
-            # sensitivity_dist[idx, :] = res["Sensitivity"]
 
         return {"amps": amps, "NSE": NSE_dist, "SE": SE_dist, "period": period}
 
-    def vary_period(model):
-        print("\t Testing period")
-        samples = 300
-        periods = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000])
-        amp = 3
-        test_points = periods.__len__()
-
-        NSE_dist = np.zeros((test_points, samples))
-        SE_dist = np.zeros((test_points, samples))
-        sensitivity_dist = np.zeros((test_points, samples))
-
-        for (idx, period) in enumerate(periods):
-            res = test_performance(model, period, amp, samples=samples)
-            NSE_dist[idx, :] = res["NSE"]
-            SE_dist[idx, :] = res["SE"]
-            # sensitivity_dist[idx, :] = res["Sensitivity"]
-
-        return {"amp": amp, "NSE": NSE_dist, "SE": SE_dist, "period": periods}
-
-
-    def test_responses(models, amp=3, period=100, sim_len=1000):
-        print("\t Getting responses")
-        samples = 300
-
-        Yest = np.zeros(samples, sim_len)
-
-        model.eval()
-        sim = msd.msd_chain(N=4, T=sim_len, u_sd=amp, period=period, Ts=0.5, batchsize=samples)
-        loader = sim.sim_rand_ic(sim_len, samples, mini_batch_size=samples)
-
-    # Collect responses of particular systems
-    sim = msd.msd_chain(N=4, T=1000, u_sd=10, period=100, Ts=0.5, batchsize=100)
-    loader = sim.sim_rand_ic(1000, 100, mini_batch_size=100)
-
-    # iqc-rnns
+    # Test generalization of Robust RNNs
     print("Running tests on robust-RNN")
     name = 'iqc-rnn_w10_gamma0.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma3.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma5.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma8.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma10.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma15.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
 
     # # lstm
     print("Running tests on LSTM")
@@ -175,42 +126,10 @@ if __name__ == "__main__":
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
-    # iqc-rnns
-    print("Running tests on ri-RNN")
-    name = 'iqc-rnn_w10_gamma0.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
-    name = 'iqc-rnn_w10_gamma3.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
-    name = 'iqc-rnn_w10_gamma6.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
-    name = 'iqc-rnn_w10_gamma8.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
-    name = 'iqc-rnn_w10_gamma10.0_n4'
-    model = iqcRNN.iqcRNN(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
-
     # cirnn
     print("Running tests on cirnn")
     name = 'cirnn_w10_gamma0.0_n4'
-    model = diRNN.diRNN(nu, width, ny, 1, nBatches=100)
+    model = ciRNN.ciRNN(nu, width, ny, 1, nBatches=100)
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
