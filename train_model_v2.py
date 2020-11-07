@@ -20,7 +20,7 @@ import models.dnb as dnb
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
-parser.add_argument('--model', type=str, default='lstm',
+parser.add_argument('--model', type=str, default='dnb',
                     choices=['lstm', 'rnn', 'cirnn', 'RobustRnn', 'dnb'],
                     help='Select model type')
 
@@ -45,7 +45,7 @@ parser.add_argument('--gamma_var', type=bool, default=False,
 parser.add_argument('--width', type=int, default=8,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=60,
+parser.add_argument('--res_size', type=int, default=0,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',

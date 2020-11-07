@@ -22,17 +22,21 @@ multiprocessing.set_start_method('spawn', True)
 
 def test_performance(model, period, sd, samples=100, sim_len=1000, wash_per=200):
     model.eval()
-    sim = msd.msd_chain(N=4, T=sim_len, u_sd=sd, period=period, Ts=0.5, batchsize=samples)
+    sim = msd.msd_chain(N=4, T=sim_len, u_sd=sd,
+                        period=period, Ts=0.5, batchsize=samples)
     loader = sim.sim_rand_ic(sim_len, samples, mini_batch_size=samples)
 
     for idx, U, Y in loader:
         with torch.no_grad():
             Yest = model(U)
-            SE = (Y[:, :, wash_per:] - Yest[:, :, wash_per:]).norm(dim=(1, 2)).detach()
-            NSE = ((Y[:, :, wash_per:] - Yest[:, :, wash_per:]).norm(dim=(1, 2)) / Y[:, :, wash_per:].norm(dim=(1, 2))).detach()
+            SE = (Y[:, :, wash_per:] - Yest[:, :, wash_per:]
+                  ).norm(dim=(1, 2)).detach()
+            NSE = ((Y[:, :, wash_per:] - Yest[:, :, wash_per:]).norm(dim=(1, 2)
+                                                                     ) / Y[:, :, wash_per:].norm(dim=(1, 2))).detach()
 
     res = {"NSE": NSE, "SE": SE}
     return res
+
 
 if __name__ == "__main__":
 
@@ -47,7 +51,7 @@ if __name__ == "__main__":
     width = 10
     batches = training_batches
 
-    path = './results/msd/'
+    path = './results_v2/msd/'
 
     if not os.path.exists(path + 'lip/'):
         os.mkdir(path + 'lip/')
@@ -75,37 +79,43 @@ if __name__ == "__main__":
     # Test generalization of Robust RNNs
     print("Running tests on robust-RNN")
     name = 'iqc-rnn_w10_gamma0.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma3.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma5.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma8.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma10.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
     name = 'iqc-rnn_w10_gamma15.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    model = RobustRnn.RobustRnn(
+        nu, width, ny, width, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
     io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
