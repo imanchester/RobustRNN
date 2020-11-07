@@ -20,7 +20,7 @@ import models.dnb as dnb
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
-parser.add_argument('--model', type=str, default='dnb',
+parser.add_argument('--model', type=str, default='RobustRnn',
                     choices=['lstm', 'rnn', 'cirnn', 'RobustRnn', 'dnb'],
                     help='Select model type')
 
@@ -30,7 +30,7 @@ parser.add_argument('--multiplier', type=str, default='Neuron',
                         (It also doesn\'t work...). \
                           then neuron then layer.')
 
-parser.add_argument('--supply_rate', type=str, default='dl2_gain',
+parser.add_argument('--supply_rate', type=str, default='stable',
                     choices=['dl2_gain', 'stable'],
                     help='Supply rate to be used. dl2_gain is a differential \
                           l2 gain bound with gain specified by gamma.\
@@ -45,7 +45,7 @@ parser.add_argument('--gamma_var', type=bool, default=False,
 parser.add_argument('--width', type=int, default=8,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=0,
+parser.add_argument('--res_size', type=int, default=15,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
