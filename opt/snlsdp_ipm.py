@@ -157,7 +157,8 @@ class stochastic_nlsdp():
                     yest = self.model(u)
                     # total_loss += self.criterion(yest, y) * u.size(0)
                     error = yest - y
-                    total_loss = torch.sqrt(torch.mean(error ** 2)) / torch.sqrt(torch.mean(y**2))
+                    total_loss = torch.sqrt(torch.mean(
+                        error ** 2)) / torch.sqrt(torch.mean(y**2))
                     total_batches += u.size(0)
 
             return float(total_loss / total_batches)
@@ -190,13 +191,14 @@ class stochastic_nlsdp():
                 def objective():
                     optimizer.zero_grad()
 
-                    h0 = self.model.h0[idx, :]
-                    yest = self.model(u, h0)
-                    # yest = self.model(u)
+                    # h0 = self.model.h0[idx, :]
+                    # yest = self.model(u, h0)
+                    yest = self.model(u)
                     L = self.criterion(y, yest)
 
                     error = yest.detach().numpy() - y.detach().numpy()
-                    train_loss = np.sqrt(np.mean(error**2)) / np.sqrt(np.mean(y.detach().numpy()**2))
+                    train_loss = np.sqrt(np.mean(error**2)) / \
+                        np.sqrt(np.mean(y.detach().numpy()**2))
 
                     # train_loss = float(L) * u.size(0)
 
@@ -219,7 +221,8 @@ class stochastic_nlsdp():
                             barrier += -lmi.logdet() / muk
 
                             try:
-                                _ = torch.cholesky(lmi)  # try a cholesky factorization to ensure positive definiteness
+                                # try a cholesky factorization to ensure positive definiteness
+                                _ = torch.cholesky(lmi)
                             except:
                                 barrier = torch.tensor(float("inf"))
 
@@ -228,9 +231,11 @@ class stochastic_nlsdp():
                     L.backward()
 
                     # n_params = sum(p.numel() for p in self.model.parameters())
-                    clip_grad.clip_grad_norm_(self.model.parameters(), self.clip_at, "inf")
+                    clip_grad.clip_grad_norm_(
+                        self.model.parameters(), self.clip_at, "inf")
                     # max_grad = max([torch.norm(p, "inf") for p in self.model.parameters()])
-                    g = [p.grad.abs().max() for p in filter(lambda p: p.grad is not None, self.model.parameters())]
+                    g = [p.grad.abs().max() for p in filter(
+                        lambda p: p.grad is not None, self.model.parameters())]
 
                     return L, train_loss, barrier, max(g)
 
@@ -251,7 +256,8 @@ class stochastic_nlsdp():
                                 barrier += -lmi.logdet() / muk
 
                                 try:
-                                    _ = torch.cholesky(lmi)  # try a cholesky factorization to ensure positive definiteness
+                                    # try a cholesky factorization to ensure positive definiteness
+                                    _ = torch.cholesky(lmi)
                                 except:
                                     barrier = torch.tensor(float("inf"))
 
@@ -270,7 +276,8 @@ class stochastic_nlsdp():
                 while not is_legal(barrier):
 
                     # step back by factor of alpha
-                    new_theta = self.alpha * old_theta + (1 - self.alpha) * new_theta
+                    new_theta = self.alpha * old_theta + \
+                        (1 - self.alpha) * new_theta
                     self.model.write_flat_params(new_theta)
 
                     ls += 1
@@ -286,7 +293,7 @@ class stochastic_nlsdp():
                 total_batches += u.size(0)
 
                 print("Epoch {:4d}: \t[{:03d}],\tlr: {:1.1e},\t loss: {:.4f} ls: {:d},\tbarrier parameter: {:.1f}, |g| {:f}".format(epoch,
-                      total_batches + 1, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk, max_grad))
+                                                                                                                                    total_batches + 1, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk, max_grad))
 
             print("Time = ", time.time() - start_time)
 
@@ -307,9 +314,9 @@ class stochastic_nlsdp():
             log["epoch"] += [epoch]
             log["muk"] += [muk]
 
-
             print("-" * 120)
-            print("Epoch {:4d}\t train_loss {:.4f},\tval_loss: {:.4f},\tbarrier parameter: {:.4f}".format(epoch, tloss, vloss, muk))
+            print("Epoch {:4d}\t train_loss {:.4f},\tval_loss: {:.4f},\tbarrier parameter: {:.4f}".format(
+                epoch, tloss, vloss, muk))
             print("-" * 120)
 
             # Temporarily save the model paramters in case of crash, etc.

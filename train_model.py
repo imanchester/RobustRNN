@@ -7,6 +7,8 @@ import scipy.io as io
 
 # Import various models and data sets
 import data.n_linked_msd as msd
+# import data.msd_gen_data as msd
+
 import opt.snlsdp_ipm as ipm
 import opt.train as train
 import models.ciRNN as ciRNN
@@ -28,7 +30,7 @@ parser.add_argument('--multiplier', type=str, default='Neuron',
                         (It also doesn\'t work...). \
                           then neuron then layer.')
 
-parser.add_argument('--supply_rate', type=str, default='dl2_gain',
+parser.add_argument('--supply_rate', type=str, default='stable',
                     choices=['dl2_gain', 'stable'],
                     help='Supply rate to be used. dl2_gain is a differential \
                           l2 gain bound with gain specified by gamma.\
@@ -40,7 +42,7 @@ parser.add_argument('--gamma', type=float, default=5.0,
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=10,
+parser.add_argument('--width', type=int, default=8,
                     help='size of state space in model')
 
 parser.add_argument('--res_size', type=int, default=10,
@@ -90,7 +92,7 @@ parser.add_argument('--save', type=bool, default=True,
                     help='Save results?')
 
 # Parameters for ipm
-parser.add_argument('--mu0', type=float, default=100.0,
+parser.add_argument('--mu0', type=float, default=10000.0,
                     help='Initial value of barrier paramers')
 
 
@@ -101,7 +103,7 @@ parser.add_argument('--mu_rate', type=float, default=10.0,
 parser.add_argument('--mu_max', type=float, default=1E6,
                     help='Maximum weight on barriere parameter.')
 
-parser.add_argument('--clip_at', type=float, default=200.0,
+parser.add_argument('--clip_at', type=float, default=2000.0,
                     help='Clip gradient at')
 
 parser.add_argument('--seed', type=int, default=1,
@@ -120,6 +122,8 @@ if args.seed is not None:
     torch.manual_seed(args.seed)
 
 # Returns the performance metics for running model on loader
+
+
 def test(model, loader):
     model.eval()
 
@@ -148,7 +152,8 @@ def test(model, loader):
             SE[idx] = (error ** 2 / N).sum(1) ** (0.5)
             NSE[idx] = ((error ** 2).sum(1) / norm_factor) ** (0.5)
 
-    res = {"inputs": inputs, "outputs": outputs, "measured": measured, "SE": SE, "NSE": NSE}
+    res = {"inputs": inputs, "outputs": outputs,
+           "measured": measured, "SE": SE, "NSE": NSE}
     return res
 
 
@@ -192,16 +197,18 @@ def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
                        "inequality": None}
 
     elif args.model == "RobustRnn":
-        model = RobustRnn.RobustRnn(nu, args.width, ny, args.res_size, nBatches=batches,
-                              method=args.multiplier, supply_rate=args.supply_rate)
+        model = RobustRnn.RobustRnn(nu, args.width, ny, args.res_size,
+                                    method=args.multiplier, supply_rate=args.supply_rate)
 
         if args.supply_rate == "dl2_gain":
             print('\t supply rate: dl2 gamma = ', args.gamma)
 
             if args.init_type == 'n4sid':
-                model.init_lipschitz_ss(gamma=args.gamma, loader=loader, solver=solver)
+                model.init_lipschitz_ss(
+                    gamma=args.gamma, loader=loader, solver=solver)
             else:
-                model.initialize_lipschitz_LMI(gamma=args.gamma, eps=1E-3, init_var=args.init_var)
+                model.initialize_lipschitz_LMI(
+                    gamma=args.gamma, eps=1E-3, init_var=args.init_var)
 
             constraints = {"lmi": model.lipschitz_LMI(gamma=args.gamma, eps=1E-5),
                            "inequality": [model.multiplier_barrier]}
@@ -209,9 +216,10 @@ def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
         elif args.supply_rate == "stable":
             print('\t supply rate: stable')
             if args.init_type == 'n4sid':
-                model.init_stable_ss(loader)
+                model.init_stable(loader)
             else:
-                model.initialize_stable_LMI(eps=1E-3, init_var=args.init_var, obj=args.init_type)
+                model.initialize_stable_LMI(
+                    eps=1E-3, init_var=args.init_var, obj=args.init_type)
             constraints = {"lmi": model.stable_LMI(eps=1E-5),
                            "inequality": [model.multiplier_barrier]}
 
@@ -237,29 +245,34 @@ if __name__ == "__main__":
 
     # Load solver options
     solver_options = ipm.make_default_options(max_epochs=args.max_epochs, lr=args.lr, clip_at=args.clip_at,
-                                                mu0=args.mu0, mu_rate=args.mu_rate, mu_max=args.mu_max,
-                                                lr_decay=args.lr_decay, patience=args.patience)
+                                              mu0=args.mu0, mu_rate=args.mu_rate, mu_max=args.mu_max,
+                                              lr_decay=args.lr_decay, patience=args.patience)
 
     print("Running model on dataset msd")
     N = args.N
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
+    mini_batch_size = 1
+    # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
-    loaders, lin_loader = msd.load_saved_data()
+    # loaders = msd.make_loader(
+    #     './data_v2/msd_tanh.mat', train_batch_size=mini_batch_size)
+    loaders, init_loader = msd.load_saved_data()
 
-    train_seq_len = 1000
-    training_batches = 100
-    mini_batch_size = 1
+    train_seq_len = loaders["Training"].dataset.u.shape[2]
+    training_batches = loaders["Training"].dataset.u.shape[0]
 
-    nu = 1
-    ny = 1
+    nu = loaders["Training"].dataset.u.shape[1]
+    ny = loaders["Training"].dataset.X.shape[1]
 
-    model, Con = generate_model(nu, ny, training_batches, args, loader=lin_loader)
+    model, Con = generate_model(
+        nu, ny, training_batches, args, loader=init_loader)
 
-    log, best_model = train.train_model(model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
+    log, best_model = train.train_model(
+        model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
 
     if args.save:
         path = './results/msd'
-        name = args.model + '_w' + str(args.width) + '_gamma' + str(args.gamma) +'_n' + str(args.N)
+        name = args.model + '_w' + \
+            str(args.width) + '_gamma' + str(args.gamma) + '_n' + str(args.N)
         test_and_save_model(path, name, model, loaders["Training"],
                             loaders["Validation"], loaders["Test"], log)
