@@ -21,8 +21,9 @@ torch.set_printoptions(precision=4)
 multiprocessing.set_start_method('spawn', True)
 
 
-# Numerically try and maximize the Lipschitz constant of the model. 
+# Numerically try and maximize the Lipschitz constant of the model.
 def estimate_Lipschitz_bound(model, alpha):
+    N = 4
     tol_change = 1E-3
 
     model.eval()
@@ -72,10 +73,12 @@ def estimate_Lipschitz_bound(model, alpha):
                 param_group['lr'] *= 0.1
 
         grad_norm = torch.sqrt(u.grad.norm() ** 2 + du.grad.norm() ** 2)
-        print('iter', ii, '\tgamma = {:2.3f} \t g={:2.1f}'.format((-J).sqrt().item(), grad_norm.item()))
+        print('iter', ii, '\tgamma = {:2.3f} \t g={:2.1f}'.format(
+            (-J).sqrt().item(), grad_norm.item()))
 
     # Simulate true model behaviour at the two points found.
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
+    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0,
+                        period=100, Ts=0.5, batchsize=20)
     _, Y1 = sim.simulate(u[0].detach().numpy().T)
     yest1 = model(u)
 
@@ -87,7 +90,8 @@ def estimate_Lipschitz_bound(model, alpha):
     NSE2 = np.linalg.norm(yest2.detach().numpy() - Y2) / np.linalg.norm(Y2)
 
     # Calculare the Lipschitz constant
-    gamma = (yest1 - yest2).norm().detach().numpy() / (du).norm().detach().numpy()
+    gamma = (yest1 - yest2).norm().detach().numpy() / \
+        (du).norm().detach().numpy()
 
     res = {"gamma": gamma, "u1": u.detach().numpy(), "u2": v.detach().numpy(),
            "y1": yest1.detach().numpy(), "y2": yest2.detach().numpy(), "True1": Y1, "True2": Y2,
@@ -102,10 +106,11 @@ if __name__ == "__main__":
 
     nu = 1
     ny = 1
-    width = 10
+    width = 8
+    neurons = 8
     batches = training_batches
 
-    path = './results/msd/'
+    path = './results_v3/msd/'
 
     if not os.path.exists(path + 'lip/'):
         os.mkdir(path + 'lip/')
@@ -116,50 +121,47 @@ if __name__ == "__main__":
         res = estimate_Lipschitz_bound(model, 1E-2)
         io.savemat(path + 'lip/' + "lip_" + name + ".mat", res)
 
-
     # Test Robust RNNs
-    name = 'iqc-rnn_w10_gamma0.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    # name = 'RobustRnn_w8_q8_gamma0.0'
+    # model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # run_tests(model, name)
+
+    # name = 'RobustRnn_w8_q8_gamma3.0'
+    # model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # run_tests(model, name)
+
+    name = 'RobustRnn_w8_q8_gamma6.0'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
 
-    name = 'iqc-rnn_w10_gamma3.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    run_tests(model, name)
-
-    name = 'iqc-rnn_w10_gamma6.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    run_tests(model, name)
-
-    name = 'iqc-rnn_w10_gamma8.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, width, nBatches=batches, method='Neuron')
+    name = 'RobustRnn_w8_q8_gamma8.0'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
 
     # lstm
-    name = 'lstm_w10_gamma0.0_n4'
+    name = 'lstm_w8_q8_gamma0.0'
     model = lstm.lstm(nu, width, ny, layers=1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
 
     # rnn
-    name = 'rnn_w10_gamma0.0_n4'
+    name = 'rnn_w8_q8_gamma0.0'
     model = rnn.rnn(nu, width, ny, 1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
 
     # cirnn
-    name = 'cirnn_w10_gamma0.0_n4'
+    name = 'cirnn_w8_q8_gamma0.0'
     model = ciRNN.ciRNN(nu, width, ny, 1, nBatches=100)
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
 
     # srnn
-    name = 'dnb_w10_gamma0.0_n4'
+    name = 'dnb_w8_q8_gamma0.0'
     model = dnb.dnbRNN(nu, width, ny, layers=1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
-
-
