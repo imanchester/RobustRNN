@@ -20,7 +20,7 @@ import models.dnb as dnb
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
-parser.add_argument('--model', type=str, default='RobustRnn',
+parser.add_argument('--model', type=str, default='lstm',
                     choices=['lstm', 'rnn', 'cirnn', 'RobustRnn', 'dnb'],
                     help='Select model type')
 
@@ -36,7 +36,7 @@ parser.add_argument('--supply_rate', type=str, default='stable',
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=5.0,
+parser.add_argument('--gamma', type=float, default=0.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,

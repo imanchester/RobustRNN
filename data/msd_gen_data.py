@@ -85,13 +85,13 @@ def random_bit_stream(T, period, u_sd):
 
 
 class msd_chain():
-    def __init__(self, N=5, spring_func=None, m=None, c=None, k=None):
+    def __init__(self, N=5, spring_func=None, m=None, c=None, k=None, v_sd=0.1):
 
         self.k = np.linspace(4.0, 2.5, N) if k is None else k
         self.c = np.linspace(1.0, 5.0, N) if c is None else c
         self.m = np.linspace(0.5, 1.0, N) if m is None else m
 
-        self.v_sd = 0.1
+        self.v_sd = v_sd
         self.w_sd = 0.0
 
         self.N = N
@@ -172,14 +172,23 @@ def make_loader(file_path, train_batch_size):
         return mu_u, sigma_u, mu_y, sigma_y
 
     mu_u, sigma_u, mu_y, sigma_y = get_normalizer(data["train"])
+    mu_u = 0
+    mu_y = 0
+    sigma_y = 1
+    sigma_u = 1
 
     # Reformat data into baches x seq_len x feature_size
-    def make_set(dict, mu_u=None, sigma_u=None, mu_y=None, sigma_y=None):
+    def make_set(dict, mu_u=None, sigma_u=None, mu_y=None, sigma_y=None, normalize=False):
 
-        uhat = sigma_u * (dict["u"][0, 0].transpose(0,
-                                                    2, 1)) - mu_u[None, None, ...]
-        yhat = sigma_y * (dict["y"][0, 0].transpose(0,
-                                                    2, 1)) - mu_y[None, None, ...]
+        if normalize:
+            uhat = sigma_u * (dict["u"][0, 0].transpose(0,
+                                                        2, 1)) - mu_u[None, None, ...]
+            yhat = sigma_y * (dict["y"][0, 0].transpose(0,
+                                                        2, 1)) - mu_y[None, None, ...]
+
+        else:
+            uhat = (dict["u"][0, 0].transpose(0, 2, 1))
+            yhat = (dict["y"][0, 0].transpose(0, 2, 1))
 
         return dataset(uhat, yhat)
 
@@ -207,7 +216,7 @@ if __name__ == "__main__":
     N = 2
     batches = 50
 
-    path = './data_v2/'
+    path = './data_v3/'
     print('Creating directory ...', path)
     try:
         os.mkdir(path)

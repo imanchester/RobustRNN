@@ -196,7 +196,7 @@ class RobustRnn(torch.nn.Module):
 
         # data = [(u, y) for (idx, u, y) in loader]
         U = loader.u[0]
-        Y = loader.y[0]
+        Y = loader.X[0]
         sys_id = sippy.system_identification(
             Y, U, 'N4SID', SS_fixed_order=self.nx)
 
@@ -209,10 +209,10 @@ class RobustRnn(torch.nn.Module):
         x = np.zeros((self.nx, U.shape[1]))
         for t in range(1, U.shape[1]):
             x[:, t:t+1] = Ass @ x[:, t-1:t] + Bss @ U[:, t-1:t]
-        plt.plot(Y[0])
-        yest = Css @ x
-        plt.plot(yest[0])
-        plt.show()
+        # plt.plot(Y[0])
+        # yest = Css @ x
+        # plt.plot(yest[0])
+        # plt.show()
 
         print("Initializing using LREE")
 
@@ -331,7 +331,7 @@ class RobustRnn(torch.nn.Module):
 
         # data = [(u, y) for (idx, u, y) in loader]
         U = loader.u[0]
-        Y = loader.y[0]
+        Y = loader.X[0]
         sys_id = sippy.system_identification(
             Y, U, 'N4SID', SS_fixed_order=self.nx)
 
@@ -344,10 +344,10 @@ class RobustRnn(torch.nn.Module):
         x = np.zeros((self.nx, U.shape[1]))
         for t in range(1, U.shape[1]):
             x[:, t:t+1] = Ass @ x[:, t-1:t] + Bss @ U[:, t-1:t]
-        plt.plot(Y[0])
-        yest = Css @ x
-        plt.plot(yest[0])
-        plt.show()
+        # plt.plot(Y[0])
+        # yest = Css @ x
+        # plt.plot(yest[0])
+        # plt.show()
 
         print("Initializing using LREE")
 

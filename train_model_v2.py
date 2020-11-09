@@ -6,7 +6,7 @@ import numpy as np
 import scipy.io as io
 
 # Import various models and data sets
-import data.msd_gen_data as msd
+import data.n_linked_msd as msd
 # import data.msd_gen_data as msd
 
 import opt.snlsdp_ipm as ipm
@@ -20,7 +20,7 @@ import models.dnb as dnb
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
-parser.add_argument('--model', type=str, default='RobustRnn',
+parser.add_argument('--model', type=str, default='rnn',
                     choices=['lstm', 'rnn', 'cirnn', 'RobustRnn', 'dnb'],
                     help='Select model type')
 
@@ -45,7 +45,7 @@ parser.add_argument('--gamma_var', type=bool, default=False,
 parser.add_argument('--width', type=int, default=8,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=15,
+parser.add_argument('--res_size', type=int, default=8,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
@@ -75,7 +75,7 @@ parser.add_argument('--patience', type=int, default=5,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
-parser.add_argument('--max_epochs', type=int, default=2000,
+parser.add_argument('--max_epochs', type=int, default=200,
                     help='Maximum number of epochs.')
 
 parser.add_argument('--name', type=str, default='test',
@@ -253,24 +253,27 @@ if __name__ == "__main__":
     # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
-    loaders = msd.make_loader(
-        './data_v2/msd_tan.mat', train_batch_size=mini_batch_size)
-    # loaders, init_loader = msd.load_saved_data()
+    # loaders = msd.make_loader(
+    #     './data_v3/msd_tan.mat', train_batch_size=mini_batch_size)
+    loaders, init_loader = msd.load_saved_data()
 
     train_seq_len = loaders["Training"].dataset.u.shape[2]
     training_batches = loaders["Training"].dataset.u.shape[0]
 
     nu = loaders["Training"].dataset.u.shape[1]
-    ny = loaders["Training"].dataset.y.shape[1]
+    ny = loaders["Training"].dataset.X.shape[1]
 
     model, Con = generate_model(
-        nu, ny, training_batches, args, loader=loaders["Linear_Init"])
+        nu, ny, training_batches, args, loader=init_loader.dataset)
+
+    # model, Con = generate_model(
+    #     nu, ny, training_batches, args, loader=loaders["Linear_Init"].dataset)
 
     log, best_model = train.train_model(
         model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
 
     if args.save:
-        path = './results_v2/msd'
+        path = './results_v3/msd'
         name = args.model + '_w' + str(args.width) + '_q' + \
             str(args.res_size) + '_gamma' + str(args.gamma)
 

@@ -292,8 +292,10 @@ class stochastic_nlsdp():
                 train_loss += t_loss
                 total_batches += u.size(0)
 
-                print("Epoch {:4d}: \t[{:03d}],\tlr: {:1.1e},\t loss: {:.4f} ls: {:d},\tbarrier parameter: {:.1f}, |g| {:f}".format(epoch,
-                                                                                                                                    total_batches + 1, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk, max_grad))
+                print("Epoch {:4d}: \t[{:03d}],\tlr: {:1.1e},\t loss: \
+                    {:.4f} ls: {:d},\tbarrier parameter: {:.1f}, |g| \
+                        {:f}".format(epoch, total_batches + 1, optimizer.param_groups[0]["lr"],
+                                     train_loss / total_batches, ls, muk, max_grad))
 
             print("Time = ", time.time() - start_time)
 
