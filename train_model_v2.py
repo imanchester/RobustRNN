@@ -20,7 +20,7 @@ import models.dnb as dnb
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
-parser.add_argument('--model', type=str, default='rnn',
+parser.add_argument('--model', type=str, default='cirnn',
                     choices=['lstm', 'rnn', 'cirnn', 'RobustRnn', 'dnb'],
                     help='Select model type')
 
@@ -42,7 +42,7 @@ parser.add_argument('--gamma', type=float, default=0.0,
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=8,
+parser.add_argument('--width', type=int, default=10,
                     help='size of state space in model')
 
 parser.add_argument('--res_size', type=int, default=8,
@@ -71,11 +71,11 @@ parser.add_argument('--lr_decay', type=float, default=0.1,
                     help='Value in (0,1] specifying exponential\
                           decay rate.')
 
-parser.add_argument('--patience', type=int, default=5,
+parser.add_argument('--patience', type=int, default=10,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
-parser.add_argument('--max_epochs', type=int, default=200,
+parser.add_argument('--max_epochs', type=int, default=500,
                     help='Maximum number of epochs.')
 
 parser.add_argument('--name', type=str, default='test',
@@ -192,7 +192,7 @@ def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
     print('Creating model', args.model, ' width = ', args.width)
     if args.model == "cirnn":
         model = ciRNN.ciRNN(nu, args.width, ny, args.depth, nBatches=batches)
-        model.init_l2(0.0, 1E-3)
+        model.init_l2(0.0, 1E-1)
         constraints = {"lmi": model.contraction_lmi(0, 1E-5),
                        "inequality": None}
 

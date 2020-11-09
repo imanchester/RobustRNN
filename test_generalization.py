@@ -48,11 +48,11 @@ if __name__ == "__main__":
 
     nu = 1
     ny = 1
-    width = 8
+    width = 10
     neurons = 8
     batches = training_batches
 
-    path = './results_v3/msd/'
+    path = './results/msd/'
 
     if not os.path.exists(path + 'lip/'):
         os.mkdir(path + 'lip/')
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     def vary_amplitude(model):
         print("\t Testing amplitude")
-        samples = 100
+        samples = 300
         test_points = 21
         period = 100
 
@@ -101,19 +101,19 @@ if __name__ == "__main__":
     # res = vary_amplitude(model)
     # io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
 
-    name = 'RobustRnn_w8_q8_gamma6.0'
-    model = RobustRnn.RobustRnn(
-        nu, width, ny, width, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
+    # name = 'RobustRnn_w8_q8_gamma6.0'
+    # model = RobustRnn.RobustRnn(
+    #     nu, width, ny, width, method='Neuron')
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # res = vary_amplitude(model)
+    # io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
 
-    name = 'RobustRnn_w8_q8_gamma8.0'
-    model = RobustRnn.RobustRnn(
-        nu, width, ny, width, method='Neuron')
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
+    # name = 'RobustRnn_w8_q8_gamma9.0'
+    # model = RobustRnn.RobustRnn(
+    #     nu, width, ny, width, method='Neuron')
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # res = vary_amplitude(model)
+    # io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
 
     # name = 'iqc-rnn_w10_gamma10.0_n4'
     # model = RobustRnn.RobustRnn(
@@ -131,24 +131,24 @@ if __name__ == "__main__":
 
     # rnn
     print("Running tests on RNN")
-    name = 'rnn_w8_q8_gamma0.0'
+    name = 'rnn_w10_gamma0.0_n4'
     model = rnn.rnn(nu, width, ny, 1, nBatches=batches)
     model.load_state_dict(torch.load(path + name + ".params"))
     res = vary_amplitude(model)
-    io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
+    io.savemat('./results/msd/generalization/amp_' + name + '.mat', res)
 
-    # cirnn
-    print("Running tests on cirnn")
-    name = 'cirnn_w8_q8_gamma0.0'
-    model = ciRNN.ciRNN(nu, width, ny, 1, nBatches=100)
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
+    # # cirnn
+    # print("Running tests on cirnn")
+    # name = 'cirnn_w8_q8_gamma0.0'
+    # model = ciRNN.ciRNN(nu, width, ny, 1, nBatches=100)
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # res = vary_amplitude(model)
+    # io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
 
-    # srnn
-    print("Running tests on srnn")
-    name = 'dnb_w8_q8_gamma0.0'
-    model = dnb.dnbRNN(nu, width, ny, layers=1, nBatches=batches)
-    model.load_state_dict(torch.load(path + name + ".params"))
-    res = vary_amplitude(model)
-    io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)
+    # # srnn
+    # print("Running tests on srnn")
+    # name = 'dnb_w8_q8_gamma0.0'
+    # model = dnb.dnbRNN(nu, width, ny, layers=1, nBatches=batches)
+    # model.load_state_dict(torch.load(path + name + ".params"))
+    # res = vary_amplitude(model)
+    # io.savemat('./results_v3/msd/generalization/amp_' + name + '.mat', res)

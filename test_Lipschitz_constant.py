@@ -110,7 +110,7 @@ if __name__ == "__main__":
     neurons = 8
     batches = training_batches
 
-    path = './results_v3/msd/'
+    path = './results/msd/'
 
     if not os.path.exists(path + 'lip/'):
         os.mkdir(path + 'lip/')
@@ -120,6 +120,21 @@ if __name__ == "__main__":
         print("Checking Lipschitz bound of model", name)
         res = estimate_Lipschitz_bound(model, 1E-2)
         io.savemat(path + 'lip/' + "lip_" + name + ".mat", res)
+
+    name = 'iqc-rnn_w10_gamma3.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
+    name = 'iqc-rnn_w10_gamma6.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
+    name = 'iqc-rnn_w10_gamma8.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
 
     # Test Robust RNNs
     # name = 'RobustRnn_w8_q8_gamma0.0'
@@ -132,7 +147,7 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load(path + name + ".params"))
     # run_tests(model, name)
 
-    name = 'RobustRnn_w8_q8_gamma6.0'
+    name = 'iqc-rnn_w10_gamma3.0_n4'
     model = RobustRnn.RobustRnn(nu, width, ny, neurons,  method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)
