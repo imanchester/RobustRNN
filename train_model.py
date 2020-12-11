@@ -7,6 +7,7 @@ import scipy.io as io
 
 # Import various models and data sets
 import data.n_linked_msd as msd
+import data.load_tac_data as data
 import opt.snlsdp_ipm as ipm
 import opt.train as train
 import models.ciRNN as ciRNN
@@ -80,7 +81,7 @@ parser.add_argument('--name', type=str, default='test',
                     help='name of the trial')
 
 parser.add_argument('--dataset', type=str, default='msd',
-                    choices=['chen', 'gp_stairs', 'msd', 'msd_ee', 'all'],
+                    choices=['Tac2017'],
                     help='Data set to test on')
 
 parser.add_argument('--N', type=int, default=4,
@@ -247,12 +248,13 @@ if __name__ == "__main__":
                                               lr_decay=args.lr_decay, patience=args.patience)
 
     print("Running model on dataset msd")
-    N = args.N
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0,
-                        period=100, Ts=0.5, batchsize=20)
+    # N = args.N
+    # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0,
+    #                     period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
-    loaders, lin_loader = msd.load_saved_data()
+    # loaders, lin_loader = msd.load_saved_data()
+    loaders = data.load(1)
 
     train_seq_len = 1000
     training_batches = 100
@@ -261,8 +263,9 @@ if __name__ == "__main__":
     nu = 1
     ny = 1
 
+    # The training loader is used to initalize the model using n4sid
     model, Con = generate_model(
-        nu, ny, training_batches, args, loader=lin_loader)
+        nu, ny, training_batches, args, loader=loaders["Training"])
 
     log, best_model = train.train_model(
         model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')

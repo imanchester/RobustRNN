@@ -2,6 +2,9 @@
 # vscode
 settings.json
 launch.json
+venv/
+
+*.pyc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
