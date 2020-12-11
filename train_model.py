@@ -28,7 +28,7 @@ parser.add_argument('--multiplier', type=str, default='Neuron',
                         (It also doesn\'t work...). \
                           then neuron then layer.')
 
-parser.add_argument('--supply_rate', type=str, default='dl2_gain',
+parser.add_argument('--supply_rate', type=str, default='stable',
                     choices=['dl2_gain', 'stable'],
                     help='Supply rate to be used. dl2_gain is a differential \
                           l2 gain bound with gain specified by gamma.\
