@@ -120,6 +120,8 @@ if args.seed is not None:
     torch.manual_seed(args.seed)
 
 # Returns the performance metics for running model on loader
+
+
 def test(model, loader):
     model.eval()
 
@@ -148,7 +150,8 @@ def test(model, loader):
             SE[idx] = (error ** 2 / N).sum(1) ** (0.5)
             NSE[idx] = ((error ** 2).sum(1) / norm_factor) ** (0.5)
 
-    res = {"inputs": inputs, "outputs": outputs, "measured": measured, "SE": SE, "NSE": NSE}
+    res = {"inputs": inputs, "outputs": outputs,
+           "measured": measured, "SE": SE, "NSE": NSE}
     return res
 
 
@@ -193,15 +196,17 @@ def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
 
     elif args.model == "RobustRnn":
         model = RobustRnn.RobustRnn(nu, args.width, ny, args.res_size, nBatches=batches,
-                              method=args.multiplier, supply_rate=args.supply_rate)
+                                    method=args.multiplier, supply_rate=args.supply_rate)
 
         if args.supply_rate == "dl2_gain":
             print('\t supply rate: dl2 gamma = ', args.gamma)
 
             if args.init_type == 'n4sid':
-                model.init_lipschitz_ss(gamma=args.gamma, loader=loader, solver=solver)
+                model.init_lipschitz_ss(
+                    gamma=args.gamma, loader=loader, solver=solver)
             else:
-                model.initialize_lipschitz_LMI(gamma=args.gamma, eps=1E-3, init_var=args.init_var)
+                model.initialize_lipschitz_LMI(
+                    gamma=args.gamma, eps=1E-3, init_var=args.init_var)
 
             constraints = {"lmi": model.lipschitz_LMI(gamma=args.gamma, eps=1E-5),
                            "inequality": [model.multiplier_barrier]}
@@ -211,7 +216,8 @@ def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
             if args.init_type == 'n4sid':
                 model.init_stable_ss(loader)
             else:
-                model.initialize_stable_LMI(eps=1E-3, init_var=args.init_var, obj=args.init_type)
+                model.initialize_stable_LMI(
+                    eps=1E-3, init_var=args.init_var, obj=args.init_type)
             constraints = {"lmi": model.stable_LMI(eps=1E-5),
                            "inequality": [model.multiplier_barrier]}
 
@@ -237,12 +243,13 @@ if __name__ == "__main__":
 
     # Load solver options
     solver_options = ipm.make_default_options(max_epochs=args.max_epochs, lr=args.lr, clip_at=args.clip_at,
-                                                mu0=args.mu0, mu_rate=args.mu_rate, mu_max=args.mu_max,
-                                                lr_decay=args.lr_decay, patience=args.patience)
+                                              mu0=args.mu0, mu_rate=args.mu_rate, mu_max=args.mu_max,
+                                              lr_decay=args.lr_decay, patience=args.patience)
 
     print("Running model on dataset msd")
     N = args.N
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
+    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0,
+                        period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
     loaders, lin_loader = msd.load_saved_data()
@@ -254,12 +261,15 @@ if __name__ == "__main__":
     nu = 1
     ny = 1
 
-    model, Con = generate_model(nu, ny, training_batches, args, loader=lin_loader)
+    model, Con = generate_model(
+        nu, ny, training_batches, args, loader=lin_loader)
 
-    log, best_model = train.train_model(model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
+    log, best_model = train.train_model(
+        model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
 
     if args.save:
         path = './results/msd'
-        name = args.model + '_w' + str(args.width) + '_gamma' + str(args.gamma) +'_n' + str(args.N)
+        name = args.model + '_w' + \
+            str(args.width) + '_gamma' + str(args.gamma) + '_n' + str(args.N)
         test_and_save_model(path, name, model, loaders["Training"],
                             loaders["Validation"], loaders["Test"], log)

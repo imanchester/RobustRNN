@@ -19,9 +19,9 @@ class IO_data(Dataset):
         self.nBatches = U.shape[0]
 
         if torch.get_default_dtype() is torch.float32:
-            convert = lambda x: x.astype(np.float32)
+            def convert(x): return x.astype(np.float32)
         else:
-            convert = lambda x: x.astype(np.float64)
+            def convert(x): return x.astype(np.float64)
 
         # self.inputs = convert(np.concatenate([X, U], 1))
         self.U = U
@@ -47,9 +47,9 @@ class sim_IO_data(Dataset):
         self.nBatches = X.shape[0]
 
         if torch.get_default_dtype() is torch.float32:
-            convert = lambda x: x.astype(np.float32)
+            def convert(x): return x.astype(np.float32)
         else:
-            convert = lambda x: x.astype(np.float64)
+            def convert(x): return x.astype(np.float64)
 
         self.u = convert(U)
         self.X = convert(X)
@@ -100,7 +100,8 @@ class msd_chain():
         # shorten the last element so that the periods add up to the total length
         u_per[-1] = u_per[-1] - (sum(u_per) - T)
 
-        u = np.concatenate([self.u_sd * (np.random.rand() - 0.5) * np.ones((per, 1)) for per in u_per], 0)
+        u = np.concatenate(
+            [self.u_sd * (np.random.rand() - 0.5) * np.ones((per, 1)) for per in u_per], 0)
         return u
 
     # For displacements x, returns the spring force
@@ -178,6 +179,7 @@ class msd_chain():
         # Construct function for the dynamcis of the system
         # dyn = lambda t, x: self.dynamics(x, u_interp(t))
         x0 = np.zeros((2 * self.N))
+
         def dyn(t, x):
             X = x.reshape(2 * self.N, -1)
             dX = self.dynamics(X, u_interp(t)[None])
@@ -211,7 +213,8 @@ class msd_chain():
             return self.dynamics(x, u, w=0)
 
         for tt in range(1, u.shape[2]):
-            states[:, tt:tt + 1] = utils.rk45(dyn, states[:, tt - 1:tt], u[0, 0, tt-1], tt * self.Ts, self.Ts)
+            states[:, tt:tt + 1] = utils.rk45(
+                dyn, states[:, tt - 1:tt], u[0, 0, tt-1], tt * self.Ts, self.Ts)
 
         Y = states[None, -2:-1, :]
         Y = Y + 0*torch.Tensor(np.random.normal(0, self.v_sd, Y.shape))
@@ -250,7 +253,8 @@ class msd_chain():
         data = IO_data(U, Y)
 
         # convert to data loader
-        loader = DataLoader(data, batch_size=self.batchsize, shuffle=True, num_workers=4)
+        loader = DataLoader(data, batch_size=self.batchsize,
+                            shuffle=True, num_workers=4)
         return loader
 
     def sim_ee(self, T=10000, mini_batch_size=100):
@@ -266,6 +270,7 @@ class msd_chain():
         # Construct function for the dynamcis of the system
         # dyn = lambda t, x: self.dynamics(x, u_interp(t))
         x0 = np.zeros((2 * self.N))
+
         def dyn(t, x):
             X = x.reshape(2 * self.N, -1)
             dX = self.dynamics(X, u_interp(t)[None])
@@ -284,7 +289,8 @@ class msd_chain():
         # inputs = np.concatenate([X, U], 1)
 
         data = IO_data(U, X, Y)
-        loader = DataLoader(data, batch_size=mini_batch_size, shuffle=True, num_workers=4)
+        loader = DataLoader(data, batch_size=mini_batch_size,
+                            shuffle=True, num_workers=4)
         return loader
 
     def short_sim(self, T=500, batches=100):
@@ -299,6 +305,7 @@ class msd_chain():
         # Construct function for the dynamcis of the system
         # dyn = lambda t, x: self.dynamics(x, u_interp(t))
         x0 = np.zeros((batches, 2 * self.N))
+
         def dyn(t, x):
             X = x.reshape(2 * self.N, -1)
             dX = self.dynamics(X, u_interp(t)[None])
@@ -314,9 +321,9 @@ class msd_chain():
         X = x[:, :-1].T
         Y = x[:, 1:].T + self.v_sd * (np.rand(x[:, 1:].T.shape) - 0.5)
 
-
         data = IO_data(U, Y)
-        loader = DataLoader(data, batch_size=self.batchsize, shuffle=False, num_workers=1)
+        loader = DataLoader(data, batch_size=self.batchsize,
+                            shuffle=False, num_workers=1)
         return loader
 
     # Grid the states space X x U with res points in all directions
@@ -331,7 +338,8 @@ class msd_chain():
         u_interp = interp.interp1d(time, u.T, axis=0)
 
         # grid for each state
-        X0 = 10 * (np.random.rand((2 * self.N * batches)) - 0.5)  # unpack list into meshgrid
+        # unpack list into meshgrid
+        X0 = 10 * (np.random.rand((2 * self.N * batches)) - 0.5)
 
         # Construct function for the dynamcis of the system
         def dyn(t, x):
@@ -355,21 +363,26 @@ class msd_chain():
         data = sim_IO_data(U, Y)
 
         # convert to data loader
-        loader = DataLoader(data, batch_size=mini_batch_size, shuffle=True, num_workers=4)
+        loader = DataLoader(data, batch_size=mini_batch_size,
+                            shuffle=True, num_workers=4)
         return loader
+
 
 def load_saved_data(mini_batch_size=1):
     train_nl = np.load('./data/msd_dataset/train_u3.npy', allow_pickle=True)
     data = sim_IO_data(train_nl.item().get("u"), train_nl.item().get("y"))
-    train_loader = DataLoader(data, batch_size=mini_batch_size, shuffle=True, num_workers=4)
+    train_loader = DataLoader(
+        data, batch_size=mini_batch_size, shuffle=True, num_workers=4)
 
     train_lin = np.load('./data/msd_dataset/train_u1.npy', allow_pickle=True)
     data = sim_IO_data(train_lin.item().get("u"), train_lin.item().get("y"))
-    train_loader_lin = DataLoader(data, batch_size=mini_batch_size, shuffle=False, num_workers=4)
+    train_loader_lin = DataLoader(
+        data, batch_size=mini_batch_size, shuffle=False, num_workers=4)
 
     val = np.load('./data/msd_dataset/val.npy', allow_pickle=True)
     data = sim_IO_data(val.item().get("u"), val.item().get("y"))
-    val_loader = DataLoader(data, batch_size=mini_batch_size, shuffle=False, num_workers=4)
+    val_loader = DataLoader(
+        data, batch_size=mini_batch_size, shuffle=False, num_workers=4)
 
     # Load test data
     test_u1 = np.load('./data/msd_dataset/test_u1.npy', allow_pickle=True)
@@ -378,14 +391,15 @@ def load_saved_data(mini_batch_size=1):
     test_u4 = np.load('./data/msd_dataset/test_u4.npy', allow_pickle=True)
 
     test_u = np.concatenate([test_u1.item()["u"], test_u2.item()["u"],
-                            test_u3.item()["u"], test_u4.item()["u"]])
+                             test_u3.item()["u"], test_u4.item()["u"]])
 
     test_y = np.concatenate([test_u1.item()["y"], test_u2.item()["y"],
-                            test_u3.item()["y"], test_u4.item()["y"]])
+                             test_u3.item()["y"], test_u4.item()["y"]])
 
     data = sim_IO_data(test_u, test_y)
     test_loader = DataLoader(data, batch_size=1, shuffle=False, num_workers=4)
 
-    loaders = {"Training": train_loader, "Validation": val_loader, "Test": test_loader}
+    loaders = {"Training": train_loader,
+               "Validation": val_loader, "Test": test_loader}
 
     return loaders, train_loader_lin
