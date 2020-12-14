@@ -28,15 +28,15 @@ class sim_IO_data(Dataset):
         return index, self.u[index], self.X[index]
 
 
-def load(realization):
+def load(train_realization, val_realization):
 
     data = io.loadmat('./data/Tac2017/pydata.mat')['processed_data']
 
     # Read data
-    tu = data["train_u"][0, 0][realization][None, None, ...]
-    ty = data["train_y"][0, 0][realization][None, None, ...]
-    vu = data["val_u"][0, 0][realization][None, None, ...]
-    vy = data["val_y"][0, 0][realization][None, None, ...]
+    tu = data["train_u"][0, 0][train_realization][None, None, ...]
+    ty = data["train_y"][0, 0][train_realization][None, None, ...]
+    vu = data["val_u"][0, 0][val_realization][None, None, ...]
+    vy = data["val_y"][0, 0][val_realization][None, None, ...]
 
     # make training data loader
     train_data = sim_IO_data(tu, ty)

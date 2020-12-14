@@ -1,6 +1,6 @@
 import torch
 import time
-import opt.snlsdp_ipm as ipm
+import opt.nlsdp_ipm as ipm
 
 
 def train_model(model, loaders=None, method="ipm", options=None,
@@ -11,9 +11,8 @@ def train_model(model, loaders=None, method="ipm", options=None,
 
     # Generate optimization problem
     options = ipm.make_default_options() if options is None else options
-    problem = ipm.stochastic_nlsdp(model=model, criterion=loss,
-                                   train_loader=loaders["Training"],
-                                   val_loader=loaders["Validation"], **options)
+    problem = ipm.nlsdp(model=model, criterion=loss,
+                        train_loader=loaders["Training"], **options)
 
     # Add constraints to problem
     if constraints is not None:

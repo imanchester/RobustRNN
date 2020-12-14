@@ -9,6 +9,7 @@ import scipy as sp
 
 import SIPPY.sippy as sippy
 import torch_utils as utils
+import matplotlib.pyplot as plt
 
 
 class RobustRnn(torch.nn.Module):
@@ -50,9 +51,11 @@ class RobustRnn(torch.nn.Module):
         self.B2 = nn.Linear(input_size, hidden_size, bias=False)
 
         # output for v
-        self.C2tild = Parameter(torch.randn((self.nw, self.nx)) / np.sqrt(self.nx))
+        self.C2tild = Parameter(torch.randn(
+            (self.nw, self.nx)) / np.sqrt(self.nx))
         self.bv = Parameter(torch.rand(self.nw) - 0.5)
-        self.Dtild = Parameter(torch.randn((self.nw, self.nu)) / np.sqrt(self.nu))
+        self.Dtild = Parameter(torch.randn(
+            (self.nw, self.nu)) / np.sqrt(self.nu))
 
         # y ouputs for model
         self.C1 = nn.Linear(hidden_size, output_size, bias=False)
@@ -72,7 +75,8 @@ class RobustRnn(torch.nn.Module):
 
         elif method == "Network":
             # Same number of variables as in lower Triangular matrix?
-            self.IQC_multipliers = torch.nn.Parameter(torch.zeros(((self.nw + 1) * self.nw) // 2))
+            self.IQC_multipliers = torch.nn.Parameter(
+                torch.zeros(((self.nw + 1) * self.nw) // 2))
         else:
             print("Do Nothing")
 
@@ -134,15 +138,18 @@ class RobustRnn(torch.nn.Module):
 
         elif self.method == "Network":
             # return the (ii,jj)'th multiplier from the mulitplier vector
-            get_multi = lambda ii, jj: self.IQC_multipliers[ii * (ii + 1) // 2 + jj]
+            def get_multi(
+                ii, jj): return self.IQC_multipliers[ii * (ii + 1) // 2 + jj]
 
             # Get the structured matrix in T
             Id = torch.eye(self.nx)
-            e = lambda ii: Id[:, ii:ii + 1]
-            Tij = lambda ii, jj: e(ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
+            def e(ii): return Id[:, ii:ii + 1]
+            def Tij(ii, jj): return e(
+                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
 
             # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj) for ii in range(0, self.nx) for jj in range(0, ii + 1))
+            T = sum(Tij(ii, jj) * get_multi(ii, jj)
+                    for ii in range(0, self.nx) for jj in range(0, ii + 1))
 
         else:
             print("Invalid method selected. Try Neuron, Layer or Network")
@@ -216,18 +223,21 @@ class RobustRnn(torch.nn.Module):
 
         elif self.method == "Network":
             # Variables can be mapped to tril matrix => (n+1) x n // 2 variables
-            multis = cp.Variable((self.nx + 1) * self.nx // 2, 'lambdas', nonneg=True)
+            multis = cp.Variable((self.nx + 1) * self.nx //
+                                 2, 'lambdas', nonneg=True)
 
             # return the (ii,jj)'th multiplier
-            get_multi = lambda ii, jj: multis[(ii * (ii + 1)) // 2 + jj]
+            def get_multi(ii, jj): return multis[(ii * (ii + 1)) // 2 + jj]
 
             # Get the structured matrix in T
             Id = np.eye(self.nx)
-            e = lambda ii: Id[:, ii:ii + 1]
-            Tij = lambda ii, jj: e(ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
+            def e(ii): return Id[:, ii:ii + 1]
+            def Tij(ii, jj): return e(
+                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
 
             # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj) for ii in range(0, self.nx) for jj in range(0, ii + 1))
+            T = sum(Tij(ii, jj) * get_multi(ii, jj)
+                    for ii in range(0, self.nx) for jj in range(0, ii + 1))
         else:
             print("Invalid method selected. Try Neuron, Layer or Network")
 
@@ -246,12 +256,15 @@ class RobustRnn(torch.nn.Module):
 
         Bw = cp.Variable((self.nx, self.nw), 'Bw')
 
-        Cv = np.random.normal(0, init_var / np.sqrt(self.nx), (self.nw, self.nx))
+        Cv = np.random.normal(
+            0, init_var / np.sqrt(self.nx), (self.nw, self.nx))
 
         Gamma_1 = sp.linalg.block_diag(Cv, np.eye(self.nw))
-        Gamma_v = np.concatenate([Gamma_1, np.zeros((2 * self.nw, self.nu))], axis=1)
+        Gamma_v = np.concatenate(
+            [Gamma_1, np.zeros((2 * self.nw, self.nu))], axis=1)
 
-        M = cp.bmat([[-2 * self.alpha * self.beta * T, (self.alpha + self.beta) * T], [(self.alpha + self.beta) * T.T, - 2 * T]])
+        M = cp.bmat([[-2 * self.alpha * self.beta * T, (self.alpha +
+                                                        self.beta) * T], [(self.alpha + self.beta) * T.T, - 2 * T]])
 
         # Construct final LMI.
         zxw = np.zeros((self.nx, self.nw))
@@ -264,7 +277,8 @@ class RobustRnn(torch.nn.Module):
                          [zxu.T, zwu.T, L_sq * np.eye(self.nu)]]) - Gamma_v.T @ M @ Gamma_v
 
         Mat21 = cp.bmat([[F, Bw, Bu], [C, Dw, Du]])
-        Mat22 = cp.bmat([[P, np.zeros((self.nx, self.ny))], [np.zeros((self.ny, self.nx)), np.eye(self.ny)]])
+        Mat22 = cp.bmat([[P, np.zeros((self.nx, self.ny))], [
+                        np.zeros((self.ny, self.nx)), np.eye(self.ny)]])
 
         Mat = cp.bmat([[Mat11, Mat21.T], [Mat21, Mat22]])
 
@@ -275,7 +289,8 @@ class RobustRnn(torch.nn.Module):
                        multis >= 1E-6]
 
         # Just find a feasible point
-        A = np.random.normal(0, init_var / np.sqrt(self.nx), (self.nx, self.nx))
+        A = np.random.normal(
+            0, init_var / np.sqrt(self.nx), (self.nx, self.nx))
 
         # Just find a feasible point
         objective = cp.Minimize(cp.norm(E @ A - Bw))
@@ -310,7 +325,8 @@ class RobustRnn(torch.nn.Module):
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
-        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx)
+        sys_id = sippy.system_identification(
+            Y, U, 'N4SID', SS_fixed_order=self.nx)
 
         Ass = sys_id.A
         Bss = sys_id.B
@@ -320,7 +336,8 @@ class RobustRnn(torch.nn.Module):
         # Calculate the trajectory.
         Xtraj = np.zeros((self.nx, Y.shape[1]))
         for tt in range(1, Y.shape[1]):
-            Xtraj[:, tt:tt+1] = Ass @ Xtraj[:, tt - 1:tt] + Bss @ U[:, tt - 1:tt]
+            Xtraj[:, tt:tt+1] = Ass @ Xtraj[:,
+                                            tt - 1:tt] + Bss @ U[:, tt - 1:tt]
 
         # Sample points, calulate next state
         samples = 5000
@@ -343,9 +360,11 @@ class RobustRnn(torch.nn.Module):
             T = cp.diag(multis)
 
         elif self.method == "Network":
-            print('YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
+            print(
+                'YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
             # Variables can be mapped to tril matrix => (n+1) x n // 2 variables
-            multis = cp.Variable((self.nx + 1) * self.nx // 2, 'lambdas', nonneg=True)
+            multis = cp.Variable((self.nx + 1) * self.nx //
+                                 2, 'lambdas', nonneg=True)
 
             # Used for mapping vector to tril matrix
             indices = list(range((self.nx + 1) * self.nx // 2))
@@ -353,15 +372,17 @@ class RobustRnn(torch.nn.Module):
             Tril_Indices[np.tril_indices(self.nx)] = indices
 
             # return the (ii,jj)'th multiplier
-            get_multi = lambda ii, jj: multis[Tril_Indices[ii, jj]]
+            def get_multi(ii, jj): return multis[Tril_Indices[ii, jj]]
 
             # Get the structured matrix in T
             Id = np.eye(self.nx)
-            e = lambda ii: Id[:, ii:ii + 1]
-            Tij = lambda ii, jj: e(ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
+            def e(ii): return Id[:, ii:ii + 1]
+            def Tij(ii, jj): return e(
+                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
 
             # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj) for ii in range(self.nx) for jj in range(ii + 1))
+            T = sum(Tij(ii, jj) * get_multi(ii, jj)
+                    for ii in range(self.nx) for jj in range(ii + 1))
         else:
             print("Invalid method selected. Try Neuron, Layer or Network")
 
@@ -377,10 +398,11 @@ class RobustRnn(torch.nn.Module):
         D11 = cp.Variable((self.ny, self.nw), 'D11')
         D12 = cp.Variable((self.ny, self.nu), 'D12')
 
-
         # Randomly initialize C2
-        C2 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
-        D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        C2 = np.random.normal(
+            0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
+        D22 = np.random.normal(
+            0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
 
         Ctild = T @ C2
         Dtild = T @ D22
@@ -423,7 +445,8 @@ class RobustRnn(torch.nn.Module):
 
         # empirical covariance matrix PHI
         Phi = zt @ zt.T
-        R = cp.Variable((2 * self.nx + self.nw + self.nu, 2 * self.nx + self.nw + self.nu))
+        R = cp.Variable((2 * self.nx + self.nw + self.nu,
+                         2 * self.nx + self.nw + self.nu))
         Q = cp.bmat([[R, EFBB.T], [EFBB, E + E.T - np.eye(self.nx)]])
 
         # Add additional term for output errors
@@ -479,7 +502,8 @@ class RobustRnn(torch.nn.Module):
                             [self.C2tild, -2 * T]])
 
             # Construct final LMI.
-            Mat11 = utils.block_diag([E + E.T - P, torch.zeros(self.nw, self.nw)]) - S
+            Mat11 = utils.block_diag(
+                [E + E.T - P, torch.zeros(self.nw, self.nw)]) - S
             Mat21 = utils.bmat([[F, B1]])
             Mat22 = P
 
@@ -508,9 +532,11 @@ class RobustRnn(torch.nn.Module):
             T = cp.diag(multis)
 
         elif self.method == "Network":
-            print('YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
+            print(
+                'YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
             # Variables can be mapped to tril matrix => (n+1) x n // 2 variables
-            multis = cp.Variable((self.nx + 1) * self.nx // 2, 'lambdas', nonneg=True)
+            multis = cp.Variable((self.nx + 1) * self.nx //
+                                 2, 'lambdas', nonneg=True)
 
             # Used for mapping vector to tril matrix
             indices = list(range((self.nx + 1) * self.nx // 2))
@@ -518,15 +544,17 @@ class RobustRnn(torch.nn.Module):
             Tril_Indices[np.tril_indices(self.nx)] = indices
 
             # return the (ii,jj)'th multiplier
-            get_multi = lambda ii, jj: multis[Tril_Indices[ii, jj]]
+            def get_multi(ii, jj): return multis[Tril_Indices[ii, jj]]
 
             # Get the structured matrix in T
             Id = np.eye(self.nx)
-            e = lambda ii: Id[:, ii:ii + 1]
-            Tij = lambda ii, jj: e(ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
+            def e(ii): return Id[:, ii:ii + 1]
+            def Tij(ii, jj): return e(
+                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
 
             # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj) for ii in range(self.nx) for jj in range(ii + 1))
+            T = sum(Tij(ii, jj) * get_multi(ii, jj)
+                    for ii in range(self.nx) for jj in range(ii + 1))
         else:
             print("Invalid method selected. Try Neuron, Layer or Network")
 
@@ -536,15 +564,18 @@ class RobustRnn(torch.nn.Module):
         F = cp.Variable((self.nx, self.nx), 'F')
         Bw = cp.Variable((self.nx, self.nw), 'Bw')
 
-        Cv = np.random.normal(0, init_var / np.sqrt(self.nx), (self.nw, self.nx))
+        Cv = np.random.normal(
+            0, init_var / np.sqrt(self.nx), (self.nw, self.nx))
         Gamma_v = sp.linalg.block_diag(Cv, np.eye(self.nw))
-        M = cp.bmat([[-2 * self.alpha * self.beta * T, (self.alpha + self.beta) * T], [(self.alpha + self.beta) * T, - 2 * T]])
+        M = cp.bmat([[-2 * self.alpha * self.beta * T, (self.alpha +
+                                                        self.beta) * T], [(self.alpha + self.beta) * T, - 2 * T]])
 
         # Construct final LMI.
         z1 = np.zeros((self.nx, self.nw))
         z2 = np.zeros((self.nw, self.nw))
 
-        Mat11 = cp.bmat([[E + E.T - P, z1], [z1.T, z2]]) - Gamma_v.T @ M @ Gamma_v
+        Mat11 = cp.bmat([[E + E.T - P, z1], [z1.T, z2]]) - \
+            Gamma_v.T @ M @ Gamma_v
 
         Mat21 = cp.bmat([[F, Bw]])
         Mat22 = P
@@ -557,7 +588,8 @@ class RobustRnn(torch.nn.Module):
                        E + E.T >> (eps + solver_tol) * np.eye(self.nx),
                        multis >= 1E-6]
 
-        A = np.random.normal(0, init_var / np.sqrt(self.nx), (self.nx, self.nw))
+        A = np.random.normal(
+            0, init_var / np.sqrt(self.nx), (self.nx, self.nw))
         # Ass = np.eye(self.nx)
 
         # ensure wide distribution of eigenvalues for Bw
@@ -593,12 +625,18 @@ class RobustRnn(torch.nn.Module):
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
-        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx)
+        sys_id = sippy.system_identification(
+            Y, U, 'N4SID', SS_fixed_order=self.nx)
 
         Ass = sys_id.A
         Bss = sys_id.B
         Css = sys_id.C
         Dss = sys_id.D
+
+        x = np.zeros((self.nx, Y.shape[1]))
+        for t in range(1, x.shape[1]):
+            x[:, t:t+1] = Ass @ x[:, t-1:t] + Bss @ U[:, t-1:t]
+        Yest = Css @ x + Dss @ U
 
         # Sample points, calulate next state
         samples = 5000
@@ -621,9 +659,11 @@ class RobustRnn(torch.nn.Module):
             T = cp.diag(multis)
 
         elif self.method == "Network":
-            print('YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
+            print(
+                'YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
             # Variables can be mapped to tril matrix => (n+1) x n // 2 variables
-            multis = cp.Variable((self.nx + 1) * self.nx // 2, 'lambdas', nonneg=True)
+            multis = cp.Variable((self.nx + 1) * self.nx //
+                                 2, 'lambdas', nonneg=True)
 
             # Used for mapping vector to tril matrix
             indices = list(range((self.nx + 1) * self.nx // 2))
@@ -631,15 +671,17 @@ class RobustRnn(torch.nn.Module):
             Tril_Indices[np.tril_indices(self.nx)] = indices
 
             # return the (ii,jj)'th multiplier
-            get_multi = lambda ii, jj: multis[Tril_Indices[ii, jj]]
+            def get_multi(ii, jj): return multis[Tril_Indices[ii, jj]]
 
             # Get the structured matrix in T
             Id = np.eye(self.nx)
-            e = lambda ii: Id[:, ii:ii + 1]
-            Tij = lambda ii, jj: e(ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
+            def e(ii): return Id[:, ii:ii + 1]
+            def Tij(ii, jj): return e(
+                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
 
             # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj) for ii in range(self.nx) for jj in range(ii + 1))
+            T = sum(Tij(ii, jj) * get_multi(ii, jj)
+                    for ii in range(self.nx) for jj in range(ii + 1))
         else:
             print("Invalid method selected. Try Neuron, Layer or Network")
 
@@ -651,8 +693,10 @@ class RobustRnn(torch.nn.Module):
         B2 = cp.Variable((self.nx, self.nu), 'Bu')
 
         # Randomly initialize C2
-        C2 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
-        D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        C2 = np.random.normal(
+            0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
+        D22 = np.random.normal(
+            0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
 
         Ctild = T @ C2
         Dtild = T @ D22
@@ -686,7 +730,8 @@ class RobustRnn(torch.nn.Module):
 
         # empirical covariance matrix PHI
         Phi = zt @ zt.T
-        R = cp.Variable((2*self.nx + self.nw + self.nu, 2*self.nx + self.nw + self.nu))
+        R = cp.Variable((2*self.nx + self.nw + self.nu,
+                         2*self.nx + self.nw + self.nu))
         Q = cp.bmat([[R, EFBB.T], [EFBB, E + E.T - np.eye(self.nx)]])
 
         objective = cp.Minimize(cp.trace(R@Phi))
@@ -746,7 +791,8 @@ class RobustRnn(torch.nn.Module):
         print("Init Complete")
 
     def clone(self):
-        copy = type(self)(self.nu, self.nx, self.ny, self.nw, nBatches=self.nBatches, nl=self.nl, method=self.method)
+        copy = type(self)(self.nu, self.nx, self.ny, self.nw,
+                          nBatches=self.nBatches, nl=self.nl, method=self.method)
         copy.load_state_dict(self.state_dict())
 
         return copy

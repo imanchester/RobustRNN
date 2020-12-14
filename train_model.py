@@ -9,6 +9,7 @@ import scipy.io as io
 import data.n_linked_msd as msd
 import data.load_tac_data as data
 import opt.snlsdp_ipm as ipm
+
 import opt.train as train
 import models.ciRNN as ciRNN
 import models.lstm as lstm
@@ -35,16 +36,16 @@ parser.add_argument('--supply_rate', type=str, default='stable',
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=5.0,
+parser.add_argument('--gamma', type=float, default=0.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=10,
+parser.add_argument('--width', type=int, default=4,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=10,
+parser.add_argument('--res_size', type=int, default=50,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
@@ -63,12 +64,13 @@ parser.add_argument('--method', type=str, default='ipm',
                     help='Method of constrainted optimization.\
                           Currently only ipm is working.')
 
-parser.add_argument('--lr', type=float, default=1E-3,
+parser.add_argument('--lr', type=float, default=1E-6,
                     help='Learning Rate')
 
-parser.add_argument('--lr_decay', type=float, default=0.25,
+parser.add_argument('--lr_decay', type=float, default=0.1,
                     help='Value in (0,1] specifying exponential\
                           decay rate.')
+
 
 parser.add_argument('--patience', type=int, default=10,
                     help='Number of epochs without validation\
@@ -91,7 +93,7 @@ parser.add_argument('--save', type=bool, default=True,
                     help='Save results?')
 
 # Parameters for ipm
-parser.add_argument('--mu0', type=float, default=100.0,
+parser.add_argument('--mu0', type=float, default=1E8,
                     help='Initial value of barrier paramers')
 
 
@@ -99,7 +101,7 @@ parser.add_argument('--mu_rate', type=float, default=10.0,
                     help='Rate of increase in barrier weight.')
 
 
-parser.add_argument('--mu_max', type=float, default=1E6,
+parser.add_argument('--mu_max', type=float, default=1E10,
                     help='Maximum weight on barriere parameter.')
 
 parser.add_argument('--clip_at', type=float, default=200.0,
@@ -248,31 +250,30 @@ if __name__ == "__main__":
                                               lr_decay=args.lr_decay, patience=args.patience)
 
     print("Running model on dataset msd")
-    # N = args.N
-    # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0,
-    #                     period=100, Ts=0.5, batchsize=20)
 
-    # Load previously simulated msd data
-    # loaders, lin_loader = msd.load_saved_data()
-    loaders = data.load(1)
+    for train_realization in range(5, 30):
+        # Change this for different data realization.
+        loaders = data.load(train_realization, 0)
 
-    train_seq_len = 1000
-    training_batches = 100
-    mini_batch_size = 1
+        train_seq_len = 1000
+        training_batches = 100
+        mini_batch_size = 1
 
-    nu = 1
-    ny = 1
+        nu = 1
+        ny = 1
 
-    # The training loader is used to initalize the model using n4sid
-    model, Con = generate_model(
-        nu, ny, training_batches, args, loader=loaders["Training"])
+        # The training loader is used to initalize the model using n4sid
+        model, Con = generate_model(
+            nu, ny, training_batches, args, loader=loaders["Training"])
 
-    log, best_model = train.train_model(
-        model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
+        log, best_model = train.train_model(
+            model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
 
-    if args.save:
-        path = './results/msd'
-        name = args.model + '_w' + \
-            str(args.width) + '_gamma' + str(args.gamma) + '_n' + str(args.N)
-        test_and_save_model(path, name, model, loaders["Training"],
-                            loaders["Validation"], loaders["Test"], log)
+        if args.save:
+            path = './results/TAC_2017'
+            name = args.model + '_w' + \
+                str(args.width) + '_gamma' + \
+                str(args.gamma) + '_' + str(train_realization)
+
+            test_and_save_model(path, name, model,
+                                loaders["Training"], loaders["Validation"], loaders["Test"], log)
