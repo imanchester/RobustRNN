@@ -17,6 +17,7 @@ import models.rnn as rnn
 import models.RobustRnn as RobustRnn
 import models.dnb as dnb
 
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='Training Robust RNNs')
 
@@ -42,7 +43,7 @@ parser.add_argument('--gamma', type=float, default=0.0,
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=4,
+parser.add_argument('--width', type=int, default=10,
                     help='size of state space in model')
 
 parser.add_argument('--res_size', type=int, default=50,
@@ -64,7 +65,7 @@ parser.add_argument('--method', type=str, default='ipm',
                     help='Method of constrainted optimization.\
                           Currently only ipm is working.')
 
-parser.add_argument('--lr', type=float, default=1E-6,
+parser.add_argument('--lr', type=float, default=1E-4,
                     help='Learning Rate')
 
 parser.add_argument('--lr_decay', type=float, default=0.1,
@@ -76,7 +77,7 @@ parser.add_argument('--patience', type=int, default=10,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
-parser.add_argument('--max_epochs', type=int, default=2000,
+parser.add_argument('--max_epochs', type=int, default=1000,
                     help='Maximum number of epochs.')
 
 parser.add_argument('--name', type=str, default='test',
@@ -93,7 +94,7 @@ parser.add_argument('--save', type=bool, default=True,
                     help='Save results?')
 
 # Parameters for ipm
-parser.add_argument('--mu0', type=float, default=1E8,
+parser.add_argument('--mu0', type=float, default=1E5,
                     help='Initial value of barrier paramers')
 
 
@@ -101,13 +102,13 @@ parser.add_argument('--mu_rate', type=float, default=10.0,
                     help='Rate of increase in barrier weight.')
 
 
-parser.add_argument('--mu_max', type=float, default=1E10,
+parser.add_argument('--mu_max', type=float, default=1E7,
                     help='Maximum weight on barriere parameter.')
 
 parser.add_argument('--clip_at', type=float, default=200.0,
                     help='Clip gradient at')
 
-parser.add_argument('--seed', type=int, default=1,
+parser.add_argument('--seed', type=int, default=2,
                     help='Random seed to use for both numpy and torch')
 
 args = parser.parse_args()
@@ -125,7 +126,7 @@ if args.seed is not None:
 # Returns the performance metics for running model on loader
 
 
-def test(model, loader):
+def test(model, loader, osf):
     model.eval()
 
     # This is a pretty dodgy way of doing this.
@@ -140,7 +141,7 @@ def test(model, loader):
     with torch.no_grad():
         for (idx, u, y) in loader:
 
-            yest = model(u)
+            yest = osf[0, 0][0, 0] * model(u)
             inputs[idx] = np.split(u.numpy(), u.shape[0], 0)
             outputs[idx] = np.split(yest.numpy(), yest.shape[0], 0)
             measured[idx] = np.split(y.numpy(), y.shape[0], 0)
@@ -159,7 +160,7 @@ def test(model, loader):
 
 
 def test_and_save_model(path, name, model, train_loader,
-                        val_loader, test_loader, log, params=None):
+                        test_loader, osf, log, params=None):
 
     print("Testing and Saving Models")
 
@@ -171,13 +172,15 @@ def test_and_save_model(path, name, model, train_loader,
     file_name = '/' + name + '.mat'
 
     # Test performance and store in dict for saving
-    train_stats = test(model, train_loader)
-    val_stats = test(model, val_loader)
-    test_stats = test(model, test_loader)
+    train_stats = test(model, train_loader, osf)
+    test_stats = test(model, test_loader, osf)
 
-    data = {"validation": val_stats, "training": train_stats,
-            "test": test_stats, "nx": model.nx, "nu": model.nu,
-            "ny": model.ny, "training_log": log}
+    data = {"training": train_stats,
+            "test": test_stats,
+            "nx": model.nx,
+            "nu": model.nu,
+            "ny": model.ny,
+            "training_log": log}
 
     if params is not None:
         data = {**data, **params}
@@ -251,7 +254,7 @@ if __name__ == "__main__":
 
     print("Running model on dataset msd")
 
-    for train_realization in range(5, 30):
+    for train_realization in range(1, 30):
         # Change this for different data realization.
         loaders = data.load(train_realization, 0)
 
@@ -276,4 +279,7 @@ if __name__ == "__main__":
                 str(args.gamma) + '_' + str(train_realization)
 
             test_and_save_model(path, name, model,
-                                loaders["Training"], loaders["Validation"], loaders["Test"], log)
+                                loaders["Training_Raw"],
+                                loaders["Test"],
+                                loaders["osf"],
+                                log)

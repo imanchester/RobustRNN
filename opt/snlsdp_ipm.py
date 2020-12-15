@@ -20,7 +20,7 @@ class stochastic_nlsdp():
 
     # decVars should be a list of parameter vectors and ceq cineq should be lists of functions
     def __init__(self, model, train_loader, val_loader, criterion=None, max_epochs=1000, lr=1.0, max_ls=50,
-                 tolerance_change=1E-5, debug=False, patience=10, mu0=10, lr_decay=0.95, clip_at=1.0,
+                 tolerance_change=1E-4, debug=False, patience=10, mu0=10, lr_decay=0.95, clip_at=1.0,
                  alpha=0.5, mu_rate=1.5, mu_max=1E6):
 
         self.model = model

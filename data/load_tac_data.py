@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import scipy.io as io
 from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
 
 
 class sim_IO_data(Dataset):
@@ -30,26 +31,52 @@ class sim_IO_data(Dataset):
 
 def load(train_realization, val_realization):
 
-    data = io.loadmat('./data/Tac2017/pydata.mat')['processed_data']
+    data = io.loadmat('./data/Tac2017/pydata.mat')['data']
 
-    # Read data
-    tu = data["train_u"][0, 0][train_realization][None, None, ...]
-    ty = data["train_y"][0, 0][train_realization][None, None, ...]
-    vu = data["val_u"][0, 0][val_realization][None, None, ...]
-    vy = data["val_y"][0, 0][val_realization][None, None, ...]
+    # Unpack data from matlab data structure
+    preamble = data[0][0][0]
+    training = data[0][0][1]
+    validation = data[0][0][2]
+
+    # raw
+    tu_raw = training[0, train_realization]['raw_data'][0, 0][0, 0]['u'][None,...]
+    ty_raw = training[0, train_realization]['raw_data'][0, 0][0, 0]['y'][None,...]
+
+    vu_raw = validation[0, val_realization]['raw_data'][0, 0][0, 0]['u'][None,...]
+    vy_raw = validation[0, val_realization]['raw_data'][0, 0][0, 0]['y'][None,...]
+
+    # filtered data
+    tu_filt = training[0, train_realization]['filtered_data'][0, 0][0, 0]['u'][None,...]
+    ty_filt = training[0, train_realization]['filtered_data'][0, 0][0, 0]['y'][None,...]
+    tx_filt = training[0, train_realization]['filtered_data'][0, 0][0, 0]['x'][None,...]
+
+    ssf = training[0, train_realization]['ssf']
+    osf = training[0, train_realization]['osf']
 
     # make training data loader
-    train_data = sim_IO_data(tu, ty)
+    train_data = sim_IO_data(tu_filt, ty_filt)
     train_loader = DataLoader(
-        train_data, batch_size=1, shuffle=True, num_workers=1)
+        train_data, batch_size=1, shuffle=False, num_workers=4)
 
-    # Make validation loader
-    test_data = sim_IO_data(vu, vy)
-    test_loader = DataLoader(
-        test_data, batch_size=1, shuffle=True, num_workers=1)
+    # Training raw
+    train_data_raw = sim_IO_data(tu_raw, ty_raw)
+    train_loader_raw = DataLoader(train_data_raw,
+                                  batch_size=1,
+                                  shuffle=False,
+                                  num_workers=4)
+
+    # Make validation from raw io data
+    test_data = sim_IO_data(vu_raw, vy_raw)
+    test_loader = DataLoader(test_data,
+                             batch_size=1,
+                             shuffle=True,
+                             num_workers=4)
 
     loaders = {"Training": train_loader,
-               "Validation": train_loader,
-               "Test": test_loader}
+               "Training_Raw": train_loader_raw,
+               "Test": test_loader,
+               "ssf": ssf,
+               "osf": osf,
+               "states": tx_filt}
 
     return loaders

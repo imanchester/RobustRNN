@@ -173,7 +173,9 @@ class nlsdp():
             best_model = self.model.clone()
 
         log = {"training": [tloss], "epoch": [0], "muk": [muk]}
-        optimizer = torch.optim.Adam(params=self.decVars, lr=self.lr)
+        # optimizer = torch.optim.Adam(params=self.decVars, lr=self.lr)
+        # optimizer = torch.optim.LBFGS(params=self.decVars, lr=self.lr)
+        optimizer = torch.optim.Rprop(params=self.decVars, lr=self.lr)
 
         #  Main Loop of Optimizer
         for epoch in range(self.max_epochs):
@@ -190,12 +192,12 @@ class nlsdp():
 
                     h0 = self.model.h0[idx, :]
                     yest = self.model(u, h0)
-                    # yest = self.model(u)
+
                     L = self.criterion(y, yest)
 
-                    error = yest.detach().numpy() - y.detach().numpy()
-                    train_loss = np.sqrt(np.mean(error**2)) / \
-                        np.sqrt(np.mean(y.detach().numpy()**2))
+                    # error = yest.detach().numpy() - y.detach().numpy()
+                    # train_loss = np.sqrt(np.mean(error**2)) / \
+                    #     np.sqrt(np.mean(y.detach().numpy()**2))
 
                     # train_loss = float(L) * u.size(0)
 
@@ -230,11 +232,12 @@ class nlsdp():
                     # n_params = sum(p.numel() for p in self.model.parameters())
                     clip_grad.clip_grad_norm_(
                         self.model.parameters(), self.clip_at, "inf")
-                    # max_grad = max([torch.norm(p, "inf") for p in self.model.parameters()])
-                    g = [p.grad.abs().max() for p in filter(
-                        lambda p: p.grad is not None, self.model.parameters())]
 
-                    return L, train_loss, barrier, max(g)
+                    # g = [p.grad.abs().max() for p in filter(
+                    #     lambda p: p.grad is not None, self.model.parameters())]
+
+                    # return L, train_loss, barrier, max(g)
+                    return L
 
                 def check_constraints():
                     # evaluates just the barrier function.
@@ -264,7 +267,7 @@ class nlsdp():
                 old_theta = self.model.flatten_params().detach()
 
                 # step model
-                Lag, t_loss, barrier, max_grad = optimizer.step(objective)
+                Lag = optimizer.step(objective)
                 new_theta = self.model.flatten_params().detach()
 
                 # Perform a backtracking linesearch to avoid inf or NaNs
@@ -286,11 +289,21 @@ class nlsdp():
 
                     barrier = check_constraints()
 
+                # Calculate the NSE
+                with torch.no_grad():
+                    h0 = self.model.h0[idx, :]
+                    yest = self.model(u, h0)
+                    t_loss = (y - yest).norm() / y.norm()
+
                 train_loss += t_loss
                 total_batches += u.size(0)
 
-                print("Epoch {:4d}: \t[{:03d}],\tlr: {:1.1e},\t loss: {:.4f} ls: {:d},\tbarrier parameter: {:.1f}, |g| {:f}".format(epoch,
-                                                                                                                                    total_batches + 1, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk, max_grad))
+
+                print("Epoch {:4d}: \tlr: {:1.1e},\t loss: {:.4f} ls: {:d},\tbarrier parameter: {:.1f}".format(
+                    epoch, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk))
+
+                # print("Epoch {:4d}: \t[{:03d}],\tlr: {:1.1e},\t loss: {:.4f} ls: {:d},\tbarrier parameter: {:.1f}, |g| {:f}".format(epoch,
+                #                                                                                                                     total_batches + 1, optimizer.param_groups[0]["lr"], train_loss / total_batches, ls, muk, max_grad))
 
             if train_loss < best_loss - self.tolerance_change:
                 no_decrease_counter = 0
