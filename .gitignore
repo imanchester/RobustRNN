@@ -4,6 +4,8 @@ settings.json
 launch.json
 venv/
 
+temp_model.params
+
 *.pyc
 
 # Byte-compiled / optimized / DLL files
