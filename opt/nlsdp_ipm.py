@@ -21,7 +21,7 @@ class nlsdp():
 
     # decVars should be a list of parameter vectors and ceq cineq should be lists of functions
     def __init__(self, model, train_loader, criterion=None, max_epochs=1000, lr=1.0, max_ls=50,
-                 tolerance_change=1E-5, debug=False, patience=10, mu0=10, lr_decay=0.95, clip_at=1.0,
+                 tolerance_change=1E-4, debug=False, patience=10, mu0=10, lr_decay=0.95, clip_at=1.0,
                  alpha=0.5, mu_rate=1.5, mu_max=1E6):
 
         self.model = model
@@ -173,7 +173,7 @@ class nlsdp():
             best_model = self.model.clone()
 
         log = {"training": [tloss], "epoch": [0], "muk": [muk]}
-        # optimizer = torch.optim.Adam(params=self.decVars, lr=self.lr)
+        optimizer = torch.optim.Adam(params=self.decVars, lr=self.lr)
         # optimizer = torch.optim.LBFGS(params=self.decVars, lr=self.lr)
         optimizer = torch.optim.Rprop(params=self.decVars, lr=self.lr)
 

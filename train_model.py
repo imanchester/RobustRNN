@@ -73,7 +73,7 @@ parser.add_argument('--lr_decay', type=float, default=0.1,
                           decay rate.')
 
 
-parser.add_argument('--patience', type=int, default=10,
+parser.add_argument('--patience', type=int, default=5,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
@@ -153,6 +153,8 @@ def test(model, loader, osf):
 
             SE[idx] = (error ** 2 / N).sum(1) ** (0.5)
             NSE[idx] = ((error ** 2).sum(1) / norm_factor) ** (0.5)
+
+    print("testing complete. NSE {:2.3f}".format(np.mean(NSE)))
 
     res = {"inputs": inputs, "outputs": outputs,
            "measured": measured, "SE": SE, "NSE": NSE}
@@ -254,7 +256,7 @@ if __name__ == "__main__":
 
     print("Running model on dataset msd")
 
-    for train_realization in range(1, 30):
+    for train_realization in range(0, 30):
         # Change this for different data realization.
         loaders = data.load(train_realization, 0)
 
@@ -274,9 +276,11 @@ if __name__ == "__main__":
 
         if args.save:
             path = './results/TAC_2017'
-            name = args.model + '_w' + \
-                str(args.width) + '_gamma' + \
-                str(args.gamma) + '_' + str(train_realization)
+
+            name = args.model + '_w' + str(args.width) + \
+                'q' + str(args.res_size) + \
+                '_gamma' + str(args.gamma) + \
+                '_' + str(train_realization)
 
             test_and_save_model(path, name, model,
                                 loaders["Training_Raw"],

@@ -4,7 +4,7 @@ settings.json
 launch.json
 venv/
 
-results/temp_model.params
+temp_model.params
 
 *.pyc
 

@@ -627,7 +627,7 @@ class RobustRnn(torch.nn.Module):
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
         sys_id = sippy.system_identification(
-            Y, U, 'N4SID', SS_fixed_order=self.nx)
+            Y, U, 'N4SID', SS_fixed_order=self.nx, SS_f=50, SS_p=50)
 
         Ass = sys_id.A
         Bss = sys_id.B
