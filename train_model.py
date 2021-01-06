@@ -43,10 +43,10 @@ parser.add_argument('--gamma', type=float, default=0.0,
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=10,
+parser.add_argument('--width', type=int, default=100,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=50,
+parser.add_argument('--res_size', type=int, default=10,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
