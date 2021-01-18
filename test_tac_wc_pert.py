@@ -149,17 +149,21 @@ if __name__ == "__main__":
     for train_id in range(0, 30):
         loaders = data.load(train_id, 0)
 
+        model = load_model("./results/TAC_2017_test2/", "RobustRnn", 50, 50, 1.0, train_id)
+        test_model("./results/TAC_2017_wcp/", "RobustRnn", model,
+                   loaders["Test"], loaders["osf"], train_id, 1.0)
+
         model = load_model("./results/TAC_2017_test2/", "RobustRnn", 50, 50, 2.0, train_id)
         test_model("./results/TAC_2017_wcp/", "RobustRnn", model,
-                   loaders["Test"], loaders["osf"], train_id, 5.0)
+                   loaders["Test"], loaders["osf"], train_id, 2.0)
 
         model = load_model("./results/TAC_2017_test2/", "RobustRnn", 50, 50, 5.0, train_id)
         test_model("./results/TAC_2017_wcp/", "RobustRnn", model,
                    loaders["Test"], loaders["osf"], train_id, 5.0)
 
-        model = load_model("./results/TAC_2017_test2/", "RobustRnn", 50, 100, 0.0, train_id)
-        test_model("./results/TAC_2017_wcp/", "RobustRnn", model,
-                   loaders["Test"], loaders["osf"], train_id, 5.0)
+        # model = load_model("./results/TAC_2017_test2/", "RobustRnn", 50, 100, 0.0, train_id)
+        # test_model("./results/TAC_2017_wcp/", "RobustRnn", model,
+        #            loaders["Test"], loaders["osf"], train_id, 5.0)
 
         # Test Robust RNNs
         # model = load_model("./results/TAC_2017/", "rnn", 50, 100, 0.0, train_id)
