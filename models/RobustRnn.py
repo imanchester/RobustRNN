@@ -318,37 +318,34 @@ class RobustRnn(torch.nn.Module):
         self.Du.weight = Parameter(Tensor(Du.value))
         self.Cv.weight = Parameter(Tensor(Cv))
 
-    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-4, init_var=1.2, solver="SCS"):
 
-        print("RUNNING N4SID for intialization of A, Bu, C, Du")
+    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-4, init_var=1.2, solver="mosek"):
+
+        print("RUNNING N4SID for intialization of A, Bu, C, Du ... ")
+        solver_tol = 1E-4
 
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
         sys_id = sippy.system_identification(
-            Y, U, 'N4SID', SS_fixed_order=self.nx)
+            Y, U, 'N4SID', SS_fixed_order=self.nx, SS_f=200, SS_p=200)
 
         Ass = sys_id.A
         Bss = sys_id.B
         Css = sys_id.C
         Dss = sys_id.D
 
-        # Calculate the trajectory.
-        Xtraj = np.zeros((self.nx, Y.shape[1]))
-        for tt in range(1, Y.shape[1]):
-            Xtraj[:, tt:tt+1] = Ass @ Xtraj[:,
-                                            tt - 1:tt] + Bss @ U[:, tt - 1:tt]
+        x = np.zeros((self.nx, Y.shape[1]))
+        for t in range(1, Y.shape[1]):
+            x[:, t:t+1] = Ass @ x[:, t-1:t] + Bss @ U[:, t-1:t]
 
-        # Sample points, calulate next state
-        samples = 5000
-        xtild = 3 * np.random.randn(self.nx, samples)
-        utild = 3 * np.random.randn(self.nu, samples)
-        xtild_next = Ass @ xtild + Bss @ utild
+        Yest = Css @ x + Dss @ U
 
-        print("Initializing using LREE")
+        NSE = np.linalg.norm(Yest - Y) / np.linalg.norm(Y)
+        print('\t...Complete  NSE = {:1.3f}'.format(NSE ** 2))
 
         solver_tol = 1E-3
-        print("Initializing stable LMI ...")
+        print("Initializing Lipschitz LMI ...")
 
         # Lip SDP multiplier
         if self.method == "Layer":
@@ -359,43 +356,18 @@ class RobustRnn(torch.nn.Module):
             multis = cp.Variable((self.nw), 'lambdas', nonneg=True)
             T = cp.diag(multis)
 
-        elif self.method == "Network":
-            print(
-                'YOU ARE USING THE NETWORK IQC MULTIPLIER. THIS DOES NOT WORK. PLEASE CHANGE TO NEURON OR LAYER')
-            # Variables can be mapped to tril matrix => (n+1) x n // 2 variables
-            multis = cp.Variable((self.nx + 1) * self.nx //
-                                 2, 'lambdas', nonneg=True)
-
-            # Used for mapping vector to tril matrix
-            indices = list(range((self.nx + 1) * self.nx // 2))
-            Tril_Indices = np.zeros((self.nx, self.nx), dtype=int)
-            Tril_Indices[np.tril_indices(self.nx)] = indices
-
-            # return the (ii,jj)'th multiplier
-            def get_multi(ii, jj): return multis[Tril_Indices[ii, jj]]
-
-            # Get the structured matrix in T
-            Id = np.eye(self.nx)
-            def e(ii): return Id[:, ii:ii + 1]
-            def Tij(ii, jj): return e(
-                ii) @ e(ii).T if ii == jj else (e(ii) - e(jj)) @ (e(ii) - e(jj)).T
-
-            # Construct the full conic comibation of IQC's
-            T = sum(Tij(ii, jj) * get_multi(ii, jj)
-                    for ii in range(self.nx) for jj in range(ii + 1))
-        else:
-            print("Invalid method selected. Try Neuron, Layer or Network")
-
         # Construct LMIs
         P = cp.Variable((self.nx, self.nx), 'P', symmetric=True)
         E = cp.Variable((self.nx, self.nx), 'E')
         F = cp.Variable((self.nx, self.nx), 'F')
-        B1 = cp.Variable((self.nx, self.nw), 'Bw')
+        # B1 = cp.Variable((self.nx, self.nw), 'Bw')
+        B1 = np.zeros((self.nx, self.nw))
         B2 = cp.Variable((self.nx, self.nu), 'Bu')
 
         # Output matrices
         C1 = cp.Variable((self.ny, self.nx), 'C1')
-        D11 = cp.Variable((self.ny, self.nw), 'D11')
+        # D11 = cp.Variable((self.ny, self.nw), 'D11')
+        D11 = np.zeros((self.ny, self.nw))
         D12 = cp.Variable((self.ny, self.nu), 'D12')
 
         # Randomly initialize C2
@@ -427,34 +399,13 @@ class RobustRnn(torch.nn.Module):
         constraints = [Mat >> solver_tol * np.eye(Mat.shape[0]),
                        P >> (eps + solver_tol) * np.eye(self.nx),
                        E + E.T >> (eps + solver_tol) * np.eye(self.nx),
-                       multis >= 1E-6]
+                       multis >= 1E-1]
 
         # Find the closest l2 gain bounded model
         bv = self.bv.detach().numpy()[:, None]
 
-        if type(self.nl) is torch.nn.ReLU:
-            wt = np.maximum(C2 @ xtild + D22 @ utild + bv, 0)
-            wtraj = np.maximum(C2 @ Xtraj + D22 @ U + bv, 0)
-        else:
-            wt = np.tanh(C2 @ xtild + D22 @ utild + bv)
-            wtraj = np.tanh(C2 @ Xtraj + D22 @ U + bv, 0)
-
-        zt = np.concatenate([xtild_next, xtild, wt, utild], 0)
-
-        EFBB = cp.bmat([[E, -F, -B1, -B2]])
-
-        # empirical covariance matrix PHI
-        Phi = zt @ zt.T
-        R = cp.Variable((2 * self.nx + self.nw + self.nu,
-                         2 * self.nx + self.nw + self.nu))
-        Q = cp.bmat([[R, EFBB.T], [EFBB, E + E.T - np.eye(self.nx)]])
-
-        # Add additional term for output errors
-
-        eta = Y - C1 @ Xtraj - D11 @ wtraj - D12 @ U
-
-        objective = cp.Minimize(cp.trace(R@Phi) + cp.norm(eta, p="fro")**2)
-        constraints.append(Q >> 0)
+        objective = cp.Minimize(cp.norm(E @ Ass - F) + cp.norm(E @ Bss - B2) +
+                                cp.norm(Css - C1) + cp.norm(Dss - D12))
 
         prob = cp.Problem(objective, constraints)
         if solver == "mosek":
@@ -469,21 +420,42 @@ class RobustRnn(torch.nn.Module):
         self.E = Parameter(Tensor(E.value))
         self.P = Parameter(Tensor(P.value))
         self.F.weight = Parameter(Tensor(F.value))
-        self.B1.weight = Parameter(Tensor(B1.value))
+        self.B1.weight = Parameter(Tensor(B1))
         self.B2.weight = Parameter(Tensor(B2.value))
 
         # Output mappings
         self.C1.weight = Parameter(Tensor(C1.value))
+        # self.D11.weight = Parameter(torch.zeros((self.ny, self.nw)))
+        self.D11.weight = Parameter(Tensor(D11))
         self.D12.weight = Parameter(Tensor(D12.value))
-        self.D11.weight = Parameter(Tensor(D11.value))
         self.by = Parameter(Tensor([0.0]))
 
-        # Store Ctild and Dtild, C2 and D22 are extracted from
-        #  T^{-1} \tilde{C} and T^{-1} \tilde{Dtild}
+        # Store Ctild, C2 is extracted from T^{-1} \tilde{C}
         self.C2tild = Parameter(Tensor(Ctild.value))
         self.Dtild = Parameter(Tensor(Dtild.value))
 
         print("Init Complete")
+
+        # # Assign results to model
+        # self.IQC_multipliers = Parameter(Tensor(multis.value))
+        # self.E = Parameter(Tensor(E.value))
+        # self.P = Parameter(Tensor(P.value))
+        # self.F.weight = Parameter(Tensor(F.value))
+        # self.B1.weight = Parameter(Tensor(B1))
+        # self.B2.weight = Parameter(Tensor(B2.value))
+
+        # # Output mappings
+        # self.C1.weight = Parameter(Tensor(C1.value))
+        # self.D12.weight = Parameter(Tensor(D12.value))
+        # self.D11.weight = Parameter(Tensor(D11.value))
+        # self.by = Parameter(Tensor([0.0]))
+
+        # # Store Ctild and Dtild, C2 and D22 are extracted from
+        # #  T^{-1} \tilde{C} and T^{-1} \tilde{Dtild}
+        # self.C2tild = Parameter(Tensor(Ctild.value))
+        # self.Dtild = Parameter(Tensor(Dtild.value))
+
+        # print("Init Complete")
 
     def stable_LMI(self, eps=1E-4):
         def stable_lmi():
@@ -641,7 +613,7 @@ class RobustRnn(torch.nn.Module):
         Yest = Css @ x + Dss @ U
 
         NSE = np.linalg.norm(Yest - Y) / np.linalg.norm(Y)
-        print('\t...Complete  NSE = {:1.3f}'.format(NSE))
+        print('\t...Complete  NSE = {:1.3f}'.format(NSE ** 2))
 
         # Lip SDP multiplier
         if self.method == "Layer":

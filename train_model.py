@@ -31,22 +31,22 @@ parser.add_argument('--multiplier', type=str, default='Neuron',
                         (It also doesn\'t work...). \
                           then neuron then layer.')
 
-parser.add_argument('--supply_rate', type=str, default='stable',
+parser.add_argument('--supply_rate', type=str, default='dl2_gain',
                     choices=['dl2_gain', 'stable'],
                     help='Supply rate to be used. dl2_gain is a differential \
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=0.0,
+parser.add_argument('--gamma', type=float, default=100.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=100,
+parser.add_argument('--width', type=int, default=50,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=10,
+parser.add_argument('--res_size', type=int, default=50,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
@@ -73,7 +73,7 @@ parser.add_argument('--lr_decay', type=float, default=0.1,
                           decay rate.')
 
 
-parser.add_argument('--patience', type=int, default=5,
+parser.add_argument('--patience', type=int, default=10,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
@@ -102,7 +102,7 @@ parser.add_argument('--mu_rate', type=float, default=10.0,
                     help='Rate of increase in barrier weight.')
 
 
-parser.add_argument('--mu_max', type=float, default=1E7,
+parser.add_argument('--mu_max', type=float, default=1E8,
                     help='Maximum weight on barriere parameter.')
 
 parser.add_argument('--clip_at', type=float, default=200.0,
@@ -192,7 +192,7 @@ def test_and_save_model(path, name, model, train_loader,
     torch.save(model.state_dict(), path + '/' + name + ".params")
 
 
-def generate_model(nu, ny, batches, args, loader=None, solver="SCS"):
+def generate_model(nu, ny, batches, args, loader=None, solver="mosek"):
     r'Function to easily re-generate models for training on different data sets.'
 
     print('Creating model', args.model, ' width = ', args.width)
@@ -275,7 +275,7 @@ if __name__ == "__main__":
             model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
 
         if args.save:
-            path = './results/TAC_2017'
+            path = './results/TAC_2017_test2'
 
             name = args.model + '_w' + str(args.width) + \
                 'q' + str(args.res_size) + \
