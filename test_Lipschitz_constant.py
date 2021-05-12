@@ -22,15 +22,15 @@ multiprocessing.set_start_method('spawn', True)
 
 
 # Numerically try and maximize the Lipschitz constant of the model. 
-def estimate_Lipschitz_bound(model, alpha):
+def estimate_Lipschitz_bound(model, alpha, seq_len=3000):
     tol_change = 1E-3
 
     model.eval()
 
     # Initialize signals
-    u = torch.zeros((1, 1, 500), requires_grad=True)
-    du = torch.randn((1, 1, 500), requires_grad=True)
-    du.data = du.data * 0.05
+    u = torch.zeros((1, model.nu, seq_len), requires_grad=True)
+    du = torch.randn((1, model.nu, seq_len), requires_grad=True)
+    du.data = du.data * 1E-4
 
     optimizer = torch.optim.Adam([u, du], lr=alpha)
 
@@ -98,14 +98,15 @@ def estimate_Lipschitz_bound(model, alpha):
 
 if __name__ == "__main__":
 
-    training_batches = 100
+    training_batches = 504
 
-    nu = 1
-    ny = 1
-    width = 10
+    nu = 2
+    ny = 3
+    width = 75
+    neurons = 150
     batches = training_batches
 
-    path = './results/msd/'
+    path = './results/f16/'
 
     if not os.path.exists(path + 'lip/'):
         os.mkdir(path + 'lip/')
@@ -115,6 +116,20 @@ if __name__ == "__main__":
         print("Checking Lipschitz bound of model", name)
         res = estimate_Lipschitz_bound(model, 1E-2)
         io.savemat(path + 'lip/' + "lip_" + name + ".mat", res)
+
+
+    # Test Robust RNNs
+    name = 'RobustRnn_w75_gamma40.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
+    # Test Robust RNNs
+    name = 'RobustRnn_w75_gamma0.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
 
 
     # Test Robust RNNs

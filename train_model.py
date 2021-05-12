@@ -7,6 +7,7 @@ import scipy.io as io
 
 # Import various models and data sets
 import data.n_linked_msd as msd
+import data.load_f16_data as f16
 import opt.snlsdp_ipm as ipm
 import opt.train as train
 import models.ciRNN as ciRNN
@@ -34,16 +35,16 @@ parser.add_argument('--supply_rate', type=str, default='dl2_gain',
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=5.0,
+parser.add_argument('--gamma', type=float, default=40.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,
                     help='Treat gamma as a decision variable with a penalty')
 
-parser.add_argument('--width', type=int, default=10,
+parser.add_argument('--width', type=int, default=75,
                     help='size of state space in model')
 
-parser.add_argument('--res_size', type=int, default=10,
+parser.add_argument('--res_size', type=int, default=150,
                     help='width of hidden layers in model')
 
 parser.add_argument('--init_type', type=str, default='n4sid',
@@ -65,7 +66,7 @@ parser.add_argument('--method', type=str, default='ipm',
 parser.add_argument('--lr', type=float, default=1E-3,
                     help='Learning Rate')
 
-parser.add_argument('--lr_decay', type=float, default=0.25,
+parser.add_argument('--lr_decay', type=float, default=0.1,
                     help='Value in (0,1] specifying exponential\
                           decay rate.')
 
@@ -73,7 +74,7 @@ parser.add_argument('--patience', type=int, default=10,
                     help='Number of epochs without validation\
                           improvement before finishing')
 
-parser.add_argument('--max_epochs', type=int, default=2000,
+parser.add_argument('--max_epochs', type=int, default=200,
                     help='Maximum number of epochs.')
 
 parser.add_argument('--name', type=str, default='test',
@@ -124,7 +125,7 @@ def test(model, loader):
     model.eval()
 
     # This is a pretty dodgy way of doing this.
-    length = loader.__len__()
+    length = loader.__len__() * loader.batch_size
     inputs = np.zeros((length,), dtype=np.object)
     outputs = np.zeros((length,), dtype=np.object)
     measured = np.zeros((length,), dtype=np.object)
@@ -140,17 +141,16 @@ def test(model, loader):
             outputs[idx] = np.split(yest.numpy(), yest.shape[0], 0)
             measured[idx] = np.split(y.numpy(), y.shape[0], 0)
 
-            error = yest[0].numpy() - y[0].numpy()
-            mu = y[0].mean(1).numpy()
-            N = error.shape[1]
-            norm_factor = ((y[0].numpy() - mu[0, None])**2).sum(1)
+            error = yest.numpy() - y.numpy()
+            
+            N = error.shape[2]
 
-            SE[idx] = (error ** 2 / N).sum(1) ** (0.5)
-            NSE[idx] = ((error ** 2).sum(1) / norm_factor) ** (0.5)
+            SE[idx] = (error ** 2 / N).sum(2) ** (0.5)
+            # NSE[idx] = ((error ** 2).sum(1) / ) ** (0.5)
+            NSE[idx] = np.linalg.norm(error, axis=(2)) / np.linalg.norm(y.numpy(), axis=(2))
 
     res = {"inputs": inputs, "outputs": outputs, "measured": measured, "SE": SE, "NSE": NSE}
-    return res
-
+    return res 
 
 def test_and_save_model(path, name, model, train_loader,
                         val_loader, test_loader, log, params=None):
@@ -245,21 +245,24 @@ if __name__ == "__main__":
     sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
-    loaders, lin_loader = msd.load_saved_data()
+    # loaders, lin_loader = msd.load_saved_data()
 
-    train_seq_len = 1000
-    training_batches = 100
+    loaders, lin_loader = f16.load_f16_data()
+
+    train_seq_len = 1024
+    training_batches = 504
     mini_batch_size = 1
 
-    nu = 1
-    ny = 1
+    nu = 2
+    ny = 3
 
     model, Con = generate_model(nu, ny, training_batches, args, loader=lin_loader)
-
-    log, best_model = train.train_model(model, loaders=loaders, method="ipm", options=solver_options, constraints=Con, mse_type='mean')
+    
+    log, best_model = train.train_model(model, loaders=loaders, method="ipm", options=solver_options,
+                                        constraints=Con, mse_type='mean')
 
     if args.save:
-        path = './results/msd'
+        path = './results/f16'
         name = args.model + '_w' + str(args.width) + '_gamma' + str(args.gamma) +'_n' + str(args.N)
         test_and_save_model(path, name, model, loaders["Training"],
                             loaders["Validation"], loaders["Test"], log)

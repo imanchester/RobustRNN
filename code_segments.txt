@@ -1,0 +1,10 @@
+
+
+View outputs similar to julia f16 dataset
+
+p, b = (2, 2)
+plt.plot(y[b, p, 3500:3750], 'k')
+plt.plot(yest[b, p, 3500:3750], 'r')
+plt.show()
+
+Calculate the same validation metric

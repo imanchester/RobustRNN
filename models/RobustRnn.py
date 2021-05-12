@@ -310,7 +310,7 @@ class RobustRnn(torch.nn.Module):
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
-        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx)
+        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx, SS_A_stability=True,SS_f=2*self.nx, SS_p=2*self.nx)
 
         Ass = sys_id.A
         Bss = sys_id.B
@@ -453,7 +453,7 @@ class RobustRnn(torch.nn.Module):
         self.C1.weight = Parameter(Tensor(C1.value))
         self.D12.weight = Parameter(Tensor(D12.value))
         self.D11.weight = Parameter(Tensor(D11.value))
-        self.by = Parameter(Tensor([0.0]))
+        self.by = Parameter(Tensor(torch.zeros(self.C1.weight.shape[0])))
 
         # Store Ctild and Dtild, C2 and D22 are extracted from
         #  T^{-1} \tilde{C} and T^{-1} \tilde{Dtild}
@@ -582,7 +582,10 @@ class RobustRnn(torch.nn.Module):
         self.C.weight = Parameter(Tensor(0.1 * self.C.weight.data))
         self.Du.weight = Parameter(Tensor(0.0 * self.Du.weight.data))
 
-        self.Ctild = Parameter(Tensor(Cv))
+        self.C2tild = Parameter(Tensor(Cv))
+        self.Dtild = Parameter(torch.zeros(self.nv, self.nu))
+        self.by = Parameter(Tensor(torch.zeros(self.ny)))
+
 
         print("Init Complete")
 
@@ -593,7 +596,7 @@ class RobustRnn(torch.nn.Module):
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
-        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx)
+        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx,SS_f=2*self.nx, SS_p=2*self.nx)
 
         Ass = sys_id.A
         Bss = sys_id.B
@@ -737,7 +740,7 @@ class RobustRnn(torch.nn.Module):
         self.C1.weight = Parameter(Tensor(C1))
         self.D12.weight = Parameter(Tensor(D12))
         self.D11.weight = Parameter(Tensor(D11))
-        self.by = Parameter(Tensor([0.0]))
+        self.by = Parameter(Tensor(torch.zeros(self.C1.weight.shape[0])))
 
         # Store Ctild, C2 is extracted from T^{-1} \tilde{C}
         self.C2tild = Parameter(Tensor(Ctild.value))
