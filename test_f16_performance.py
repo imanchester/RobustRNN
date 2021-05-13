@@ -63,20 +63,27 @@ if __name__ == '__main__':
 
     loaders, lin_loader = f16.load_f16_data()
 
-    # Test Robust RNNs
-    name = 'RobustRnn_w75_gamma40.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load("./results/f16/" + name + ".params"))
-    res = test(model, loaders["Test"])
+    # # Test Robust RNNs
+    # name = 'RobustRnn_w75_gamma40.0_n4'
+    # model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    # model.load_state_dict(torch.load("./results/f16/" + name + ".params"))
+    # res = test(model, loaders["Test"])
 
-    # Test Robust RNNs
-    name = 'RobustRnn_w75_gamma40.0_n4'
-    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
-    model.load_state_dict(torch.load("./results/f16/" + name + ".params"))
-    test(model, name)
+    # # Test Robust RNNs
+    # name = 'RobustRnn_w75_gamma40.0_n4'
+    # model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    # model.load_state_dict(torch.load("./results/f16/" + name + ".params"))
+    # test(model, name)
 
 
     # Load model
     stable_data = io.loadmat("./results/f16/RobustRnn_w75_gamma0.0_n4.mat")
-    old_data = io.loadmat("./results/f16/RobustRnn_w75_gamma40.0_n4.mat")
+    g40_data = io.loadmat("./results/f16/RobustRnn_w75_gamma40.0_n4.mat")
+    g20_data = io.loadmat("./results/f16/RobustRnn_w75_gamma20.0_n4.mat")
+    g10_data = io.loadmat("./results/f16/RobustRnn_w75_gamma10.0_n4.mat")
+
+    print(stable_data["test"][0]["NSE"][0].mean())
+    print(g40_data["test"][0]["NSE"][0].mean())
+    print(g20_data["test"][0]["NSE"][0].mean())
+    print(g10_data["test"][0]["NSE"][0].mean())
     print("fin")

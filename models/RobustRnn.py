@@ -428,7 +428,6 @@ class RobustRnn(torch.nn.Module):
         Q = cp.bmat([[R, EFBB.T], [EFBB, E + E.T - np.eye(self.nx)]])
 
         # Add additional term for output errors
-
         eta = Y - C1 @ Xtraj - D11 @ wtraj - D12 @ U
 
         objective = cp.Minimize(cp.trace(R@Phi) + cp.norm(eta, p="fro")**2)
@@ -590,19 +589,24 @@ class RobustRnn(torch.nn.Module):
 
         print("Init Complete")
 
-    def init_stable_ss(self, loader, eps=1E-4, init_var=1.2, solver="SCS"):
+    def init_stable_ss(self, loader, eps=1E-4, init_var=0.8, solver="SCS"):
 
         print("RUNNING N4SID for intialization of A, Bu, C, Du")
 
         data = [(u, y) for (idx, u, y) in loader]
         U = data[0][0][0].numpy()
         Y = data[0][1][0].numpy()
-        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx,SS_f=2*self.nx, SS_p=2*self.nx)
+        sys_id = sippy.system_identification(Y, U, 'N4SID', SS_fixed_order=self.nx,SS_A_stability=True, SS_f=2*self.nx, SS_p=2*self.nx)
 
         Ass = sys_id.A
         Bss = sys_id.B
         Css = sys_id.C
         Dss = sys_id.D
+
+        # Calculate the trajectory.
+        Xtraj = np.zeros((self.nx, Y.shape[1]))
+        for tt in range(1, Y.shape[1]):
+            Xtraj[:, tt:tt+1] = Ass @ Xtraj[:, tt - 1:tt] + Bss @ U[:, tt - 1:tt]
 
         # Sample points, calulate next state
         samples = 5000
@@ -654,6 +658,11 @@ class RobustRnn(torch.nn.Module):
         B1 = cp.Variable((self.nx, self.nw), 'Bw')
         B2 = cp.Variable((self.nx, self.nu), 'Bu')
 
+        # Output matrices
+        C1 = cp.Variable((self.ny, self.nx), 'C1')
+        D11 = cp.Variable((self.ny, self.nw), 'D11')
+        D12 = cp.Variable((self.ny, self.nu), 'D12')
+
         # Randomly initialize C2
         C2 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
         # D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
@@ -682,8 +691,10 @@ class RobustRnn(torch.nn.Module):
 
         if type(self.nl) is torch.nn.ReLU:
             wt = np.maximum(C2 @ xtild + D22 @ utild + bv, 0)
+            wtraj = np.maximum(C2 @ Xtraj + D22 @ U + bv, 0)
         else:
             wt = np.tanh(C2 @ xtild + D22 @ utild + bv)
+            wtraj = np.tanh(C2 @ Xtraj + D22 @ U + bv, 0)
 
         zt = np.concatenate([xtild_next, xtild, wt, utild], 0)
 
@@ -694,7 +705,10 @@ class RobustRnn(torch.nn.Module):
         R = cp.Variable((2*self.nx + self.nw + self.nu, 2*self.nx + self.nw + self.nu))
         Q = cp.bmat([[R, EFBB.T], [EFBB, E + E.T - np.eye(self.nx)]])
 
-        objective = cp.Minimize(cp.trace(R@Phi))
+        # Add additional term for output errors
+        eta = Y - C1 @ Xtraj - D11 @ wtraj - D12 @ U
+
+        objective = cp.Minimize(cp.trace(R@Phi)+ cp.norm(eta, p="fro")**2)
         constraints.append(Q >> 0)
 
         prob = cp.Problem(objective, constraints)
@@ -703,32 +717,8 @@ class RobustRnn(torch.nn.Module):
             prob.solve(solver=cp.MOSEK)
         else:
             prob.solve(solver=cp.SCS)
+        
         print("Initilization Status: ", prob.status)
-
-        # Solve for output mapping from (W, X, U) -> Y
-        # using linear least squares
-        X = np.zeros((self.nx, U.shape[1]))
-        X[:, 0:1] = sys_id.x0
-
-        Einv = np.linalg.inv(E.value)
-        Ahat = Einv @ F.value
-        Bwhat = Einv @ B1.value
-        Buhat = Einv @ B2.value
-        for t in range(1, U.shape[1]):
-            w = np.maximum(C2 @ X[:, t-1:t] + D22 @ U[:, t-1:t] + bv, 0)
-            X[:, t:t+1] = Ahat @ X[:, t-1:t] + Bwhat @ w + Buhat @ U[:, t-1:t]
-
-        if type(self.nl) is torch.nn.ReLU:
-            W = np.maximum(C2 @ X + D22 @ U + bv, 0)
-        else:
-            W = np.tanh(C2 @ X + D22 @ U + bv, 0)
-
-        Z = np.concatenate([X, W, U], 0)
-        output_mats = Y @ np.linalg.pinv(Z)
-
-        C1 = 0.01*output_mats[:, :self.nx]
-        D11 = 0.0*output_mats[:, self.nx:self.nx+self.nw]
-        D12 = 0.0*output_mats[:, self.nx+self.nw:]
 
         # Assign results to model
         self.IQC_multipliers = Parameter(Tensor(multis.value))
@@ -739,14 +729,58 @@ class RobustRnn(torch.nn.Module):
         self.B2.weight = Parameter(Tensor(B2.value))
 
         # Output mappings
-        self.C1.weight = Parameter(Tensor(C1))
-        self.D12.weight = Parameter(Tensor(D12))
-        self.D11.weight = Parameter(Tensor(D11))
+        self.C1.weight = Parameter(Tensor(C1.value))
+        self.D12.weight = Parameter(Tensor(D12.value))
+        self.D11.weight = Parameter(Tensor(D11.value))
         self.by = Parameter(Tensor(torch.zeros(self.C1.weight.shape[0])))
 
-        # Store Ctild, C2 is extracted from T^{-1} \tilde{C}
+        # Store Ctild and Dtild, C2 and D22 are extracted from
+        #  T^{-1} \tilde{C} and T^{-1} \tilde{Dtild}
         self.C2tild = Parameter(Tensor(Ctild.value))
         self.Dtild = Parameter(Tensor(Dtild.value))
+
+        # # Solve for output mapping from (W, X, U) -> Y
+        # # using linear least squares
+        # X = np.zeros((self.nx, U.shape[1]))
+        # X[:, 0:1] = sys_id.x0
+
+        # Einv = np.linalg.inv(E.value)
+        # Ahat = Einv @ F.value
+        # Bwhat = Einv @ B1.value
+        # Buhat = Einv @ B2.value
+        # for t in range(1, U.shape[1]):
+        #     w = np.maximum(C2 @ X[:, t-1:t] + D22 @ U[:, t-1:t] + bv, 0)
+        #     X[:, t:t+1] = Ahat @ X[:, t-1:t] + Bwhat @ w + Buhat @ U[:, t-1:t]
+
+        # if type(self.nl) is torch.nn.ReLU:
+        #     W = np.maximum(C2 @ X + D22 @ U + bv, 0)
+        # else:
+        #     W = np.tanh(C2 @ X + D22 @ U + bv, 0)
+
+        # Z = np.concatenate([X, W, U], 0)
+        # output_mats = Y @ np.linalg.pinv(Z)
+
+        # C1 = 0.1*output_mats[:, :self.nx]
+        # D11 = 0.0*output_mats[:, self.nx:self.nx+self.nw]
+        # D12 = 0.0*output_mats[:, self.nx+self.nw:]
+
+        # # Assign results to model
+        # self.IQC_multipliers = Parameter(Tensor(multis.value))
+        # self.E = Parameter(Tensor(E.value))
+        # self.P = Parameter(Tensor(P.value))
+        # self.F.weight = Parameter(Tensor(F.value))
+        # self.B1.weight = Parameter(Tensor(B1.value))
+        # self.B2.weight = Parameter(Tensor(B2.value))
+
+        # # Output mappings
+        # self.C1.weight = Parameter(Tensor(C1))
+        # self.D12.weight = Parameter(Tensor(D12))
+        # self.D11.weight = Parameter(Tensor(D11))
+        # self.by = Parameter(Tensor(torch.zeros(self.C1.weight.shape[0])))
+
+        # # Store Ctild, C2 is extracted from T^{-1} \tilde{C}
+        # self.C2tild = Parameter(Tensor(Ctild.value))
+        # self.Dtild = Parameter(Tensor(Dtild.value))
 
         print("Init Complete")
 

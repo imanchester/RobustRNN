@@ -37,7 +37,7 @@ def estimate_Lipschitz_bound(model, alpha, seq_len=3000):
     J_best = 0
     no_decrease_counter = 0
 
-    for ii in range(2000):
+    for ii in range(200):
         # Try and maximize lipschitz constant
         def closure():
             optimizer.zero_grad()
@@ -45,7 +45,7 @@ def estimate_Lipschitz_bound(model, alpha, seq_len=3000):
             yest2 = model(u + du)
             J = -((yest2 - yest1).norm()**2) / (du.norm()**2)
             J.backward()
-            clip_grad.clip_grad_norm_([u, du], 100, 2)
+            # clip_grad.clip_grad_norm_([u, du], 100, 2)
             return J
         J = optimizer.step(closure)
 
@@ -74,24 +74,26 @@ def estimate_Lipschitz_bound(model, alpha, seq_len=3000):
         grad_norm = torch.sqrt(u.grad.norm() ** 2 + du.grad.norm() ** 2)
         print('iter', ii, '\tgamma = {:2.3f} \t g={:2.1f}'.format((-J).sqrt().item(), grad_norm.item()))
 
-    # Simulate true model behaviour at the two points found.
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
-    _, Y1 = sim.simulate(u[0].detach().numpy().T)
-    yest1 = model(u)
+    # # Simulate true model behaviour at the two points found.
+    # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
+    # _, Y1 = sim.simulate(u[0].detach().numpy().T)
+    # yest1 = model(u)
 
-    NSE1 = (np.linalg.norm(yest1.detach().numpy() - Y1) / np.linalg.norm(Y1))
+    # NSE1 = (np.linalg.norm(yest1.detach().numpy() - Y1) / np.linalg.norm(Y1))
 
-    v = (u + du)
-    _, Y2 = sim.simulate(v[0].detach().numpy().T)
-    yest2 = model(v)
-    NSE2 = np.linalg.norm(yest2.detach().numpy() - Y2) / np.linalg.norm(Y2)
+    # v = (u + du)
+    # _, Y2 = sim.simulate(v[0].detach().numpy().T)
+    # yest2 = model(v)
+    # NSE2 = np.linalg.norm(yest2.detach().numpy() - Y2) / np.linalg.norm(Y2)
 
-    # Calculare the Lipschitz constant
-    gamma = (yest1 - yest2).norm().detach().numpy() / (du).norm().detach().numpy()
+    # # Calculare the Lipschitz constant
+    # gamma = (yest1 - yest2).norm().detach().numpy() / (du).norm().detach().numpy()
 
-    res = {"gamma": gamma, "u1": u.detach().numpy(), "u2": v.detach().numpy(),
-           "y1": yest1.detach().numpy(), "y2": yest2.detach().numpy(), "True1": Y1, "True2": Y2,
-           "NSE1": NSE1, "NSE2": NSE2}
+    # res = {"gamma": gamma, "u1": u.detach().numpy(), "u2": v.detach().numpy(),
+    #        "y1": yest1.detach().numpy(), "y2": yest2.detach().numpy(), "True1": Y1, "True2": Y2,
+    #        "NSE1": NSE1, "NSE2": NSE2}
+
+    res = {"gamma": -J_best}
 
     return res
 
@@ -117,6 +119,11 @@ if __name__ == "__main__":
         res = estimate_Lipschitz_bound(model, 1E-2)
         io.savemat(path + 'lip/' + "lip_" + name + ".mat", res)
 
+    # Test Robust RNNs
+    name = 'RobustRnn_w75_gamma0.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
 
     # Test Robust RNNs
     name = 'RobustRnn_w75_gamma40.0_n4'
@@ -125,7 +132,13 @@ if __name__ == "__main__":
     run_tests(model, name)
 
     # Test Robust RNNs
-    name = 'RobustRnn_w75_gamma0.0_n4'
+    name = 'RobustRnn_w75_gamma20.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
+    # Test Robust RNNs
+    name = 'RobustRnn_w75_gamma10.0_n4'
     model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))
     run_tests(model, name)

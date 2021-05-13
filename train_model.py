@@ -240,9 +240,9 @@ if __name__ == "__main__":
                                                 mu0=args.mu0, mu_rate=args.mu_rate, mu_max=args.mu_max,
                                                 lr_decay=args.lr_decay, patience=args.patience)
 
-    print("Running model on dataset msd")
+    print("Running model on dataset f16")
     N = args.N
-    sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
+    # sim = msd.msd_chain(N=N, T=5000, u_sd=3.0, period=100, Ts=0.5, batchsize=20)
 
     # Load previously simulated msd data
     # loaders, lin_loader = msd.load_saved_data()
