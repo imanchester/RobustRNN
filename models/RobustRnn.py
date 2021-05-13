@@ -202,7 +202,7 @@ class RobustRnn(torch.nn.Module):
 
         return [l2gb_lmi, E_pd, P_pd]
 
-    def initialize_lipschitz_LMI(self, gamma=10.0, eps=1E-4, init_var=1.5, solver="SCS"):
+    def initialize_lipschitz_LMI(self, gamma=10.0, eps=1E-2, init_var=1.5, solver="SCS"):
         solver_tol = 1E-4
         print("Initializing Lipschitz LMI ...")
         # Lip SDP multiplier
@@ -303,7 +303,7 @@ class RobustRnn(torch.nn.Module):
         self.Du.weight = Parameter(Tensor(Du.value))
         self.Cv.weight = Parameter(Tensor(Cv))
 
-    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-4, init_var=1.2, solver="SCS"):
+    def init_lipschitz_ss(self, loader, gamma=10.0, eps=1E-2, init_var=0.5, solver="SCS"):
 
         print("RUNNING N4SID for intialization of A, Bu, C, Du")
 
@@ -330,7 +330,7 @@ class RobustRnn(torch.nn.Module):
 
         print("Initializing using LREE")
 
-        solver_tol = 1E-3
+        solver_tol = 1E-2
         print("Initializing stable LMI ...")
 
         # Lip SDP multiplier
@@ -380,7 +380,8 @@ class RobustRnn(torch.nn.Module):
 
         # Randomly initialize C2
         C2 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
-        D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        # D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        D22 = np.zeros((self.nw, self.nu))
 
         Ctild = T @ C2
         Dtild = T @ D22
@@ -496,7 +497,7 @@ class RobustRnn(torch.nn.Module):
 
     def initialize_stable_LMI(self, eps=1E-4, init_var=1.5, obj='B', solver="SCS"):
 
-        solver_tol = 1E-4
+        solver_tol = 1E-3
         print("Initializing stable LMI ...")
         # Lip SDP multiplier
         if self.method == "Layer":

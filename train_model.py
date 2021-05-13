@@ -35,7 +35,7 @@ parser.add_argument('--supply_rate', type=str, default='dl2_gain',
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=40.0,
+parser.add_argument('--gamma', type=float, default=20.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,
