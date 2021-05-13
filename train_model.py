@@ -29,13 +29,13 @@ parser.add_argument('--multiplier', type=str, default='Neuron',
                         (It also doesn\'t work...). \
                           then neuron then layer.')
 
-parser.add_argument('--supply_rate', type=str, default='stable',
+parser.add_argument('--supply_rate', type=str, default='dl2_gain',
                     choices=['dl2_gain', 'stable'],
                     help='Supply rate to be used. dl2_gain is a differential \
                           l2 gain bound with gain specified by gamma.\
                           Stable means there is no supply rate.')
 
-parser.add_argument('--gamma', type=float, default=0.0,
+parser.add_argument('--gamma', type=float, default=1000.0,
                     help='L2 gain bound for l2rnn and iqc-rnn\'s')
 
 parser.add_argument('--gamma_var', type=bool, default=False,
