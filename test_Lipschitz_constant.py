@@ -120,6 +120,12 @@ if __name__ == "__main__":
         io.savemat(path + 'lip/' + "lip_" + name + ".mat", res)
 
     # Test Robust RNNs
+    name = 'RobustRnn_w75_gamma1000.0_n4'
+    model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
+    model.load_state_dict(torch.load(path + name + ".params"))
+    run_tests(model, name)
+
+    # Test Robust RNNs
     name = 'RobustRnn_w75_gamma0.0_n4'
     model = RobustRnn.RobustRnn(nu, width, ny, neurons, nBatches=batches, method='Neuron')
     model.load_state_dict(torch.load(path + name + ".params"))

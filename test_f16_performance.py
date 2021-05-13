@@ -78,11 +78,13 @@ if __name__ == '__main__':
 
     # Load model
     stable_data = io.loadmat("./results/f16/RobustRnn_w75_gamma0.0_n4.mat")
+    g1000_data = io.loadmat("./results/f16/RobustRnn_w75_gamma1000.0_n4.mat")
     g40_data = io.loadmat("./results/f16/RobustRnn_w75_gamma40.0_n4.mat")
     g20_data = io.loadmat("./results/f16/RobustRnn_w75_gamma20.0_n4.mat")
     g10_data = io.loadmat("./results/f16/RobustRnn_w75_gamma10.0_n4.mat")
 
     print(stable_data["test"][0]["NSE"][0].mean())
+    print(g1000_data["test"][0]["NSE"][0].mean())
     print(g40_data["test"][0]["NSE"][0].mean())
     print(g20_data["test"][0]["NSE"][0].mean())
     print(g10_data["test"][0]["NSE"][0].mean())
