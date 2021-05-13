@@ -655,7 +655,8 @@ class RobustRnn(torch.nn.Module):
 
         # Randomly initialize C2
         C2 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nx))
-        D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        # D22 = np.random.normal(0, init_var / np.sqrt(self.nw), (self.nw, self.nu))
+        D22 = np.zeros((self.nw, self.nu))
 
         Ctild = T @ C2
         Dtild = T @ D22
@@ -724,9 +725,9 @@ class RobustRnn(torch.nn.Module):
         Z = np.concatenate([X, W, U], 0)
         output_mats = Y @ np.linalg.pinv(Z)
 
-        C1 = output_mats[:, :self.nx]
-        D11 = output_mats[:, self.nx:self.nx+self.nw]
-        D12 = output_mats[:, self.nx+self.nw:]
+        C1 = 0.01*output_mats[:, :self.nx]
+        D11 = 0.0*output_mats[:, self.nx:self.nx+self.nw]
+        D12 = 0.0*output_mats[:, self.nx+self.nw:]
 
         # Assign results to model
         self.IQC_multipliers = Parameter(Tensor(multis.value))
